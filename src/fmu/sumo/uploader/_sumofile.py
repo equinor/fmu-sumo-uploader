@@ -228,7 +228,7 @@ class SumoFile:
                     }
                 )
             else:
-                if self.metadata["data"]["vertical_domain"] == "depth":
+                if self.metadata["data"].get("vertical_domain") == "depth":
                     sample_unit = "m"
                 else:
                     sample_unit = "ms"  # aka time domain
