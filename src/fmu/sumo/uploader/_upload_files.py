@@ -19,14 +19,8 @@ from fmu.sumo.uploader._logger import get_uploader_logger
 logger = get_uploader_logger()
 
 
-def create_parameter_file(
-    case_uuid,
-    realization_id,
-    parameters_path,
-    config_path,
-    sumoclient,
-):
-    """If not already stored, generate a parameters object from the parameters.txt file
+def get_parameter_file(parameters_path, config_path):
+    """Return a parameters object from the parameters.txt file
 
     Args:
         case_uuid (str): parent uuid for case
@@ -41,13 +35,6 @@ def create_parameter_file(
 
     bytestring = None
     metadata = None
-
-    query = f"fmu.case.uuid:{case_uuid} AND fmu.realization.uuid:{realization_id} AND data.content:parameters"
-
-    search_res = sumoclient.get("/search", {"$query": query}).json()
-
-    if search_res["hits"]["total"]["value"] > 0:
-        return None
 
     try:
         with open(config_path, "r", encoding="utf-8") as variables_yml:
@@ -131,6 +118,8 @@ def _upload_files(
     parameters_path="parameters.txt",
 ):
     """
+    Upload realization and iteration objects if they do not exist
+    Upload parameters file if it does not exist or it has changed
     Create threads and call _upload in each thread
     """
 
@@ -148,15 +137,21 @@ def _upload_files(
                     e.with_traceback(None),
                 )
 
-            paramfile = create_parameter_file(
-                sumo_parent_id,
-                realization_id,
-                parameters_path,
-                config_path,
-                sumoclient,
-            )
+            paramfile = get_parameter_file(parameters_path, config_path)
             if paramfile is not None:
-                files.append(paramfile)
+                query = f"fmu.case.uuid:{sumo_parent_id} AND fmu.realization.uuid:{realization_id} AND data.content:parameters"
+                search_res = sumoclient.get(
+                    "/search", {"$query": query, "$select": "_sumo.blob_md5"}
+                ).json()
+                # Check if the parameters file does not exist or has changed
+                if (
+                    search_res["hits"]["total"]["value"] == 0
+                    or search_res["hits"]["hits"][0]["_source"]["_sumo"][
+                        "blob_md5"
+                    ]
+                    != paramfile.metadata["_sumo"]["blob_md5"]
+                ):
+                    files.append(paramfile)
 
             break
 

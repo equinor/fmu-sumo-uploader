@@ -83,7 +83,7 @@ class SumoFile:
         response = sumoclient.post(path=path, json=self.metadata)
         return response
 
-    def _upload_byte_string(self, sumoclient, object_id, blob_url):
+    def _upload_byte_string(self, blob_url):
         blobclient = BlobClient.from_blob_url(blob_url)
         content_settings = ContentSettings(
             content_type="application/octet-stream"
@@ -278,11 +278,7 @@ class SumoFile:
                     )
         else:  # non-seismic blob
             try:
-                response = self._upload_byte_string(
-                    sumoclient=sumoclient,
-                    object_id=self.sumo_object_id,
-                    blob_url=blob_url,
-                )
+                response = self._upload_byte_string(blob_url)
                 upload_response.update(
                     {
                         "status_code": response.status_code,
