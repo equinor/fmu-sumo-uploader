@@ -156,6 +156,14 @@ class CaseOnDisk(SumoCase):
             sumo_parent_id = self._upload_case_metadata(self.case_metadata)
             self._sumo_parent_id = sumo_parent_id
 
+            try:
+                self.sumoclient.create_shared_access_key_for_case(
+                    self._fmu_case_uuid
+                )
+            except Exception as ex:
+                logger.warn(f"Unable to create shared access key: {ex}")
+                pass
+
             logger.info("Case registered. SumoID: {}".format(sumo_parent_id))
 
             return sumo_parent_id
