@@ -86,10 +86,12 @@ class SumoCase:
 
         logger.debug("files_to_upload: %s", files_to_upload)
 
+        sumoclient = self.sumoclient.client_for_case(self._sumo_parent_id)
+
         upload_results = upload_files(
             files_to_upload,
             self._sumo_parent_id,
-            self.sumoclient,
+            sumoclient,
             threads,
             self.sumo_mode,
             self.config_path,

@@ -3,6 +3,7 @@
 import glob
 import logging
 import os
+import time
 import warnings
 from pathlib import Path
 
@@ -155,6 +156,17 @@ class CaseOnDisk(SumoCase):
         try:
             sumo_parent_id = self._upload_case_metadata(self.case_metadata)
             self._sumo_parent_id = sumo_parent_id
+
+            # Give Sumo some time to make the case object searchable.
+            time.sleep(3)
+
+            try:
+                self.sumoclient.create_shared_access_key_for_case(
+                    self._fmu_case_uuid
+                )
+            except Exception as ex:
+                logger.warn(f"Unable to create shared access key: {ex}")
+                pass
 
             logger.info("Case registered. SumoID: {}".format(sumo_parent_id))
 
