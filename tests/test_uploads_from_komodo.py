@@ -102,7 +102,7 @@ def test_case_consistency(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     non_consistent_cases = 0
     for case in cases:
-        res = explorer._sumo.get(f"/admin/consistency-check?case={case.uuid}")
+        res = explorer._sumo.get(f"/admin/mismatches?case={case.uuid}")
         metadata_wo_blobs = len(res.json().get("metadata_without_blobs"))
         blobs_wo_metadata = len(res.json().get("blobs_without_metadata"))
         if metadata_wo_blobs > 0 or blobs_wo_metadata > 0:
