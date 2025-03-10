@@ -104,10 +104,12 @@ def test_case_consistency(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     non_consistent_cases = 0
     for case in cases:
-        mismatches_request = explorer._sumo.get(f"/admin/mismatches?case={case.uuid}")
+        mismatches_request = explorer._sumo.get(
+            f"/admin/mismatches?case={case.uuid}"
+        )
         mismatches_res_location = mismatches_request.headers.get("location")
         res_url = mismatches_res_location.removeprefix(explorer._sumo.base_url)
-        time.sleep(3) # Give time for result to be ready
+        time.sleep(3)  # Give time for result to be ready
         res = explorer._sumo.get(res_url)
         metadata_wo_blobs = len(res.json().get("metadata_without_blobs"))
         blobs_wo_metadata = len(res.json().get("blobs_without_metadata"))
@@ -169,7 +171,9 @@ def test_case_surfaces(explorer: Explorer):
     seed()
     random_index = randint(0, len(case.surfaces) - 1)
     reg = case.surfaces[random_index].to_regular_surface()
-    assert type(reg) == xtgeo.RegularSurface, "Failed to read content of a blob"
+    assert type(reg) is xtgeo.RegularSurface, (
+        "Failed to read content of a blob"
+    )
 
     print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
     # There could be many failed runs from komodo-release repo,
