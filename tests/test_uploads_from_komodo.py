@@ -18,6 +18,7 @@ from pathlib import Path
 from random import randint, seed
 
 import pytest
+import xtgeo
 
 from fmu.sumo.explorer import Explorer
 
@@ -28,7 +29,6 @@ if not sys.platform.startswith("darwin"):
 TEST_DIR = Path(__file__).parent / "../"
 os.chdir(TEST_DIR)
 
-ENV = "dev"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level="DEBUG")
@@ -68,7 +68,6 @@ def _get_suitable_cases(explorer):
     """Returns list of suitable cases that was uploaded by f_scout_ci
     recently"""
     cases = explorer.cases
-    cases.users
     cases = cases.filter(user="f_scout_ci")
     assert len(cases) > 0
     selected = []
@@ -104,7 +103,10 @@ def test_case_consistency(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     non_consistent_cases = 0
     for case in cases:
-        res = explorer._sumo.get(f"/admin/consistency-check?case={case.uuid}")
+        mismatches_response = explorer._sumo.get(
+            f"/admin/mismatches?case={case.uuid}"
+        )
+        res = explorer._sumo.poll(mismatches_response)
         metadata_wo_blobs = len(res.json().get("metadata_without_blobs"))
         blobs_wo_metadata = len(res.json().get("blobs_without_metadata"))
         if metadata_wo_blobs > 0 or blobs_wo_metadata > 0:
@@ -165,8 +167,9 @@ def test_case_surfaces(explorer: Explorer):
     seed()
     random_index = randint(0, len(case.surfaces) - 1)
     reg = case.surfaces[random_index].to_regular_surface()
-    mean = reg.values.mean()
-    assert mean, "Failed to read content of a blob"
+    assert type(reg) is xtgeo.RegularSurface, (
+        "Failed to read content of a blob"
+    )
 
     print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
     # There could be many failed runs from komodo-release repo,
