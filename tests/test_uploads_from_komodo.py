@@ -28,7 +28,6 @@ if not sys.platform.startswith("darwin"):
 TEST_DIR = Path(__file__).parent / "../"
 os.chdir(TEST_DIR)
 
-ENV = "dev"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level="DEBUG")
@@ -68,7 +67,6 @@ def _get_suitable_cases(explorer):
     """Returns list of suitable cases that was uploaded by f_scout_ci
     recently"""
     cases = explorer.cases
-    cases.users
     cases = cases.filter(user="f_scout_ci")
     assert len(cases) > 0
     selected = []
