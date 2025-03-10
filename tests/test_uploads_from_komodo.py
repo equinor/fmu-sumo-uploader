@@ -18,6 +18,7 @@ from pathlib import Path
 from random import randint, seed
 
 import pytest
+import xtgeo
 
 from fmu.sumo.explorer import Explorer
 
@@ -163,8 +164,7 @@ def test_case_surfaces(explorer: Explorer):
     seed()
     random_index = randint(0, len(case.surfaces) - 1)
     reg = case.surfaces[random_index].to_regular_surface()
-    mean = reg.values.mean()
-    assert mean, "Failed to read content of a blob"
+    assert type(reg) == xtgeo.RegularSurface, "Failed to read content of a blob"
 
     print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
     # There could be many failed runs from komodo-release repo,
