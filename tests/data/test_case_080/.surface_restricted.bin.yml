@@ -143,6 +143,7 @@ access:
     name: Drogon
   ssdl:
     access_level: restricted
+    rep_include: true
   classification: restricted
 masterdata:
   smda:
