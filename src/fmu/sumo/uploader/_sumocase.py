@@ -169,7 +169,7 @@ class SumoCase:
                 )
 
         logger.info("Summary:")
-        logger.info("Total files count: %s", str(len(self.files)))
+        logger.info("Total files count: %s", str(len(files_to_upload)))
         logger.info("OK: %s", str(len(ok_uploads)))
         logger.info("Failed: %s", str(len(failed_uploads)))
         logger.info("Rejected: %s", str(len(rejected_uploads)))

@@ -155,6 +155,7 @@ def _upload_files(
                     != paramfile.metadata["_sumo"]["blob_md5"]
                 ):
                     files.append(paramfile)
+                    logger.info("Parameters file will be uploaded")
 
             break
 
