@@ -143,7 +143,6 @@ access:
     name: Drogon
   ssdl:
     access_level: internal
-    rep_include: true
   affiliate_roles:
   - DROGON-AFFILIATE
 masterdata:

@@ -143,7 +143,6 @@ access:
     name: Drogon
   ssdl:
     access_level: internal
-    rep_include: true
 masterdata_INVALID_SCHEMA:
   smda:
     country:
