@@ -327,8 +327,8 @@ def test_case_with_one_child_and_params(
 
     # # Delete this case
     logger.debug("Cleanup after test: delete case")
-    path = f"/objects('{e.sumo_parent_id}')"
-    sumoclient.delete(path=path)
+    # path = f"/objects('{e.sumo_parent_id}')"
+    # sumoclient.delete(path=path)
 
 
 def test_case_with_one_child_with_affiliate_access(token, unique_uuid):
