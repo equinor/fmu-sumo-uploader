@@ -1,7 +1,7 @@
-# Build the docs here, to show errors. 
-# The actual deployment of docs is configured in ReadTheDocs.org. 
+# Build the docs here, to show errors.
+# The actual deployment of docs is configured in ReadTheDocs.org.
 
-name: Build and deploy docs 
+name: Build and deploy docs
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.11"]
         os: [ubuntu-latest]
 
     steps:
