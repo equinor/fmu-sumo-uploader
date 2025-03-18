@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
         os: [ubuntu-latest]
     permissions:
       contents: read
@@ -44,6 +44,7 @@ jobs:
           az account list
           pip list | grep sumo || echo 'sumo not installed'
           pip list | grep openvds || echo 'openvds not installed'
+          export DEV_SCHEMA=1 # use fmu-dataio dev schema
           python -c  'import sys; print(sys.platform)'
           python -c 'import os; import sys; print(os.path.dirname(sys.executable))'
           access_token=$(az account get-access-token --scope api://88d2b022-3539-4dda-9e66-853801334a86/.default --query accessToken --output tsv)

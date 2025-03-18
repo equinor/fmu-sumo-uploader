@@ -7,7 +7,7 @@ version_file = "src/fmu/sumo/uploader/_version.py"
 
 [project]
 name = "fmu-sumo-uploader"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
   "sumo-wrapper-python>=1.0.3",
@@ -46,21 +46,12 @@ fmu_sumo_uploader_jobs = "fmu.sumo.uploader.hook_implementations.jobs"
 sumo_upload = "fmu.sumo.uploader.scripts.sumo_upload"
 
 [tool.ruff]
-exclude = [
-  ".env",
-  ".git",
-  ".github",
-  ".venv",
-  "venv", 
-]
+exclude = [".env", ".git", ".github", ".venv", "venv"]
 
 line-length = 79
 
 [tool.ruff.lint]
-ignore = [
-  "E501",
-  "PD901",
-]
+ignore = ["E501", "PD901"]
 
 extend-select = [
   "C4",  # Flake8-comprehensions
@@ -74,4 +65,3 @@ extend-select = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-
