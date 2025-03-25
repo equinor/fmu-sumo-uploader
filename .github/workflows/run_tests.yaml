@@ -1,0 +1,30 @@
+name: Test uploader
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "5 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  run_uploader_tests:
+    uses: ./.github/workflows/run_uploader_tests.yaml
+  run_tests_on_uploads_from_komodo:
+    uses: ./.github/workflows/run_tests_on_uploads_from_komodo.yaml
+  notify_on_failure:
+    needs: [run_uploader_tests, run_tests_on_uploads_from_komodo]
+    if: ${{ github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify on Slack
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "Sumo-uploader tests failing. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Logs>"

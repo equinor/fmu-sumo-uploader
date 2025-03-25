@@ -1,10 +1,8 @@
 name: Verify case previously uploaded from komodo-releases repo
 
 on:
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: "3 3 * * *"
+  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build_pywheels:
