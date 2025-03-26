@@ -1,4 +1,4 @@
-name: Verify case previously uploaded from komodo-releases repo
+name: Build and test fmu-sumo-uploader
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.11", "3.12"]
         os: [ubuntu-latest]
     permissions:
       contents: read
@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install fmu-sumo etc
+      - name: Install fmu-sumo-uploader
         run: >
           python -m pip install --upgrade pip &&
           python -m pip install .[test]
@@ -40,12 +40,12 @@ jobs:
         run: |
           az --version
           az account list
-          pip show sumo-wrapper-python
-          pip show fmu-sumo
-          pip show openvds
+          pip list | grep sumo || echo 'sumo not installed'
+          pip list | grep openvds || echo 'openvds not installed'
+          export DEV_SCHEMA=1 # use fmu-dataio dev schema
           python -c  'import sys; print(sys.platform)'
           python -c 'import os; import sys; print(os.path.dirname(sys.executable))'
           access_token=$(az account get-access-token --scope api://88d2b022-3539-4dda-9e66-853801334a86/.default --query accessToken --output tsv)
           export ACCESS_TOKEN=$access_token
 
-          pytest -s --timeout=500 ./tests/test_uploads_from_komodo.py
+          pytest -s ./tests/test_uploader.py
