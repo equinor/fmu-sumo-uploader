@@ -115,14 +115,14 @@ def test_initialization(token, case_metadata):
     )
 
 
-def test_pre_teardown(token):
+def test_pre_teardown():
     """Run teardown first to remove remnants from other test runs
     and prepare for running test suite again."""
 
     _remove_cached_case_id()
 
 
-def test_upload_without_registration(token, unique_uuid, case_metadata):
+def test_upload_without_registration(token, case_metadata):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -186,7 +186,7 @@ def test_case(token, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_case_with_restricted_child(token, unique_uuid, case_metadata):
+def test_case_with_restricted_child(token, case_metadata):
     """Assert that uploading a child with 'classification: restricted' works.
     Assumes that the identity running this test have enough rights for that."""
     sumoclient = SumoClient(env=ENV, token=token)
@@ -224,7 +224,7 @@ def test_case_with_restricted_child(token, unique_uuid, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child(token, unique_uuid, case_metadata):
+def test_case_with_one_child(token, case_metadata):
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
@@ -257,7 +257,7 @@ def test_case_with_one_child(token, unique_uuid, case_metadata):
 
 
 def test_case_with_one_child_and_params(
-    token, unique_uuid, tmp_path, case_metadata, monkeypatch
+    token, tmp_path, case_metadata, monkeypatch
 ):
     """Upload one file to Sumo. Assert that it is there."""
 
@@ -271,10 +271,6 @@ def test_case_with_one_child_and_params(
     case_meta_folder.mkdir(parents=True)
     case_meta_path = case_meta_folder / "fmu_case.yml"
     case_meta_path.write_text(Path(case_metadata).read_text(encoding="utf-8"))
-
-    print("CASE META PATH")
-    print(case_meta_path)
-    print(case_metadata)
 
     real_path = case_path / "realization-0/iter-0"
     share_path = real_path / "share/results/surface/"
@@ -351,9 +347,7 @@ def test_case_with_one_child_and_params(
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child_with_affiliate_access(
-    token, unique_uuid, case_metadata
-):
+def test_case_with_one_child_with_affiliate_access(token, case_metadata):
     """Upload one file to Sumo with affiliate access.
     Assert that it is there."""
 
@@ -386,7 +380,7 @@ def test_case_with_one_child_with_affiliate_access(
     sumoclient.delete(path=path)
 
 
-def test_case_with_no_children(token, unique_uuid, case_metadata):
+def test_case_with_no_children(token, case_metadata):
     """Test failure handling when no files are found"""
 
     sumoclient = SumoClient(env=ENV, token=token)
@@ -419,7 +413,7 @@ def test_case_with_no_children(token, unique_uuid, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_missing_child_metadata(token, unique_uuid, case_metadata):
+def test_missing_child_metadata(token, case_metadata):
     """
     Try to upload files where one does not have metadata. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -467,7 +461,7 @@ def test_missing_child_metadata(token, unique_uuid, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_invalid_yml_in_case_metadata(token, unique_uuid):
+def test_invalid_yml_in_case_metadata(token):
     """
     Try to upload case file where the metadata file is not valid yml.
     """
@@ -491,7 +485,7 @@ def test_invalid_yml_in_case_metadata(token, unique_uuid):
             )
 
 
-def test_invalid_yml_in_child_metadata(token, unique_uuid, case_metadata):
+def test_invalid_yml_in_child_metadata(token, case_metadata):
     """
     Try to upload child with invalid yml in its metadata file.
     """
@@ -533,7 +527,7 @@ def test_invalid_yml_in_child_metadata(token, unique_uuid, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_schema_error_in_case(token, unique_uuid):
+def test_schema_error_in_case(token):
     """
     Try to upload files where case have metadata with error.
     """
@@ -551,7 +545,7 @@ def test_schema_error_in_case(token, unique_uuid):
         e.register()
 
 
-def test_schema_error_in_child(token, unique_uuid, case_metadata):
+def test_schema_error_in_child(token, case_metadata):
     """
     Try to upload files where one does have metadata with error. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -763,7 +757,7 @@ def test_seismic_openvds_file(token, unique_uuid):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_default(token, unique_uuid, case_metadata):
+def test_sumo_mode_default(token, case_metadata):
     """
     Test that SUMO_MODE defaults to copy, i.e. not deleting file after upload.
     """
@@ -858,7 +852,7 @@ def test_sumo_mode_copy(token, unique_uuid, case_metadata):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_move(token, unique_uuid, case_metadata):
+def test_sumo_mode_move(token, case_metadata):
     """
     Test SUMO_MODE=move, i.e. deleting file after upload.
     """
@@ -913,7 +907,7 @@ def test_sumo_mode_move(token, unique_uuid, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_teardown(token):
+def test_teardown():
     """Teardown all testdata between every test"""
 
     _remove_cached_case_id()
