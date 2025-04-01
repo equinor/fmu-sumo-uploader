@@ -48,13 +48,6 @@ def fixture_case_metadata(token: str):
         os.remove(case_metadata_file)
 
 
-def _remove_cached_case_id():
-    """The sumo uploader caches case uuid on disk, but we should remove this
-    file between tests"""
-    with contextlib.suppress(FileNotFoundError):
-        os.remove("tests/data/test_case_080/sumo_parent_id.yml")
-
-
 def _update_metadata_file_with_unique_uuid(metadata_file, unique_case_uuid):
     """Updates an existing sumo metadata file with unique case uuid.
     (To be able to run tests in parallell towards Sumo server,
@@ -119,14 +112,10 @@ def test_pre_teardown():
     """Run teardown first to remove remnants from other test runs
     and prepare for running test suite again."""
 
-    _remove_cached_case_id()
-
 
 def test_upload_without_registration(token, case_metadata):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     case = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -148,8 +137,6 @@ def test_upload_without_registration(token, case_metadata):
 def test_case(token, case_metadata):
     """Assert that after uploading case to Sumo, the case is there and is the only one."""
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -191,8 +178,6 @@ def test_case_with_restricted_child(token, case_metadata):
     Assumes that the identity running this test have enough rights for that."""
     sumoclient = SumoClient(env=ENV, token=token)
 
-    _remove_cached_case_id()
-
     logger.debug("initialize CaseOnDisk")
 
     e = uploader.CaseOnDisk(
@@ -229,8 +214,6 @@ def test_case_with_one_child(token, case_metadata):
 
     sumoclient = SumoClient(env=ENV, token=token)
 
-    _remove_cached_case_id()
-
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
@@ -262,8 +245,6 @@ def test_case_with_one_child_and_params(
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     # Create fmu like structure
     case_path = tmp_path / "gorgon"
@@ -353,8 +334,6 @@ def test_case_with_one_child_with_affiliate_access(token, case_metadata):
 
     sumoclient = SumoClient(env=ENV, token=token)
 
-    _remove_cached_case_id()
-
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
@@ -384,8 +363,6 @@ def test_case_with_no_children(token, case_metadata):
     """Test failure handling when no files are found"""
 
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -419,8 +396,6 @@ def test_missing_child_metadata(token, case_metadata):
     and that upload commences with the other files. Check that the children are present.
     """
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -467,8 +442,6 @@ def test_invalid_yml_in_case_metadata(token):
     """
     sumoclient = SumoClient(env=ENV, token=token)
 
-    _remove_cached_case_id()
-
     case_file = "tests/data/test_case_080/case_invalid.yml"
     with pytest.warns(UserWarning) as warnings_record:
         uploader.CaseOnDisk(
@@ -489,8 +462,6 @@ def test_invalid_yml_in_child_metadata(token, case_metadata):
     Try to upload child with invalid yml in its metadata file.
     """
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -531,8 +502,6 @@ def test_schema_error_in_case(token, case_metadata):
     """
     sumoclient = SumoClient(env=ENV, token=token)
 
-    _remove_cached_case_id()
-
     # replace valid metdata key with an invalid one
     with open(case_metadata) as f:
         parsed_yaml = yaml.safe_load(f)
@@ -555,8 +524,6 @@ def test_schema_error_in_child(token, case_metadata):
     and that upload commences with the other files. Check that the children are present.
     """
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -767,8 +734,6 @@ def test_sumo_mode_default(token, case_metadata):
     """
     sumoclient = SumoClient(env=ENV, token=token)
 
-    _remove_cached_case_id()
-
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
@@ -813,8 +778,6 @@ def test_sumo_mode_copy(token, case_metadata):
     Test SUMO_MODE=copy, i.e. not deleting file after upload.
     """
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -861,8 +824,6 @@ def test_sumo_mode_move(token, case_metadata):
     Test SUMO_MODE=move, i.e. deleting file after upload.
     """
     sumoclient = SumoClient(env=ENV, token=token)
-
-    _remove_cached_case_id()
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -913,8 +874,6 @@ def test_sumo_mode_move(token, case_metadata):
 
 def test_teardown():
     """Teardown all testdata between every test"""
-
-    _remove_cached_case_id()
 
     # Set all the metadata files back to same case uuid as before, to avoid
     # git reporting changes.
