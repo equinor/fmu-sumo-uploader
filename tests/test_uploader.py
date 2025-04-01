@@ -527,7 +527,7 @@ def test_invalid_yml_in_child_metadata(token, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_schema_error_in_case(token):
+def test_schema_error_in_case(token, case_metadata):
     """
     Try to upload files where case have metadata with error.
     """
@@ -535,11 +535,18 @@ def test_schema_error_in_case(token):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case_error.yml"
+    # replace valid metdata key with an invalid one
+    with open(case_metadata) as f:
+        parsed_yaml = yaml.safe_load(f)
+    parsed_yaml["masterdata_INVALID_SCHEMA"] = parsed_yaml["masterdata"]
+    del parsed_yaml["masterdata"]
+    with open(case_metadata, "w") as f:
+        yaml.dump(parsed_yaml, f)
+
     # Cannot update invalid yml file: skip: _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     with pytest.warns(UserWarning, match="Registering case on Sumo failed*"):
         e = uploader.CaseOnDisk(
-            case_metadata_path=case_file,
+            case_metadata_path=case_metadata,
             sumoclient=sumoclient,
         )
         e.register()
