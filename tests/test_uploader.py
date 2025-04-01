@@ -634,14 +634,12 @@ def test_openvds_available():
     sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
     reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
 )
-def test_seismic_openvds_file(token, unique_uuid):
+def test_seismic_openvds_file(token, case_metadata):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
     sumoclient = SumoClient(env=ENV, token=token)
 
-    case_file = "tests/data/test_case_080/case_segy.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -649,7 +647,9 @@ def test_seismic_openvds_file(token, unique_uuid):
 
     child_binary_file = "tests/data/test_case_080/seismic.segy"
     child_metadata_file = "tests/data/test_case_080/.seismic.segy.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     segy_filepath = child_binary_file
     e.add_files(segy_filepath)
     e.upload()
