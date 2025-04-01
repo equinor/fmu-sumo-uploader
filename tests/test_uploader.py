@@ -9,10 +9,11 @@ import time
 from pathlib import Path
 
 import pytest
+import xtgeo
 import yaml
 from sumo.wrapper import SumoClient
 
-from fmu.dataio import CreateCaseMetadata
+from fmu.dataio import CreateCaseMetadata, ExportData
 from fmu.sumo import uploader
 
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
@@ -46,6 +47,44 @@ def fixture_case_metadata():
 
     with contextlib.suppress(FileNotFoundError):
         os.remove(case_metadata_file)
+
+
+@pytest.fixture(name="surface_metadata")
+def fixture_surface_metadata():
+    """Read global variables and create surface metadata"""
+
+    global_variables_file = "tests/data/test_case_080/global_variables.yml"
+    with open(global_variables_file) as f:
+        global_vars = yaml.safe_load(f)
+    ed = ExportData(
+        config=global_vars,
+        name="VOLANTIS GP. Top",
+        unit="m",
+        content="depth",
+        vertical_domain="depth",
+        timedata=None,
+        fmu_context="case",
+        casepath="tests/data/test_case_080/",
+    )
+
+    surf = xtgeo.surface_from_file(
+        "tests/data/test_case_080/topvolantis--ds_extract_geogrid.gri",
+        fformat="irap_binary",
+    )
+
+    file2 = ed.export(surf)
+    file = ed.generate_metadata(surf)
+
+    print(file)
+
+    # Update the metadata file using the unique uuid
+    with open("tests/data/test_case_080/.surface.bin.yml", "w") as f:
+        yaml.dump(file, f)
+
+    yield file
+
+    with contextlib.suppress(FileNotFoundError):
+        os.remove("tests/data/test_case_080/.surface.bin.yml")
 
 
 def _update_metadata_file_with_unique_uuid(metadata_file, unique_case_uuid):
@@ -125,10 +164,10 @@ def test_upload_without_registration(token, case_metadata):
 
     # On purpose NOT calling case.register before adding file here
     child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, case.fmu_case_uuid
-    )
+    # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
+    # _update_metadata_file_with_unique_uuid(
+    #     child_metadata_file, case.fmu_case_uuid
+    # )
     case.add_files(child_binary_file)
     with pytest.warns(UserWarning, match="Case is not registered"):
         case.upload(threads=1)
@@ -209,7 +248,7 @@ def test_case_with_restricted_child(token, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child(token, case_metadata):
+def test_case_with_one_child(token, case_metadata, surface_metadata):
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
@@ -217,15 +256,17 @@ def test_case_with_one_child(token, case_metadata):
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
+        config_path="tests/data/test_case_080/global_variables.yml",
+        parameters_path="tests/data/test_case_080/parameters.txt",
     )
     e.register()
     time.sleep(1)
 
     child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
+    # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
+    # _update_metadata_file_with_unique_uuid(
+    #     child_metadata_file, e.fmu_case_uuid
+    # )
     e.add_files(child_binary_file)
     e.upload()
     time.sleep(1)
