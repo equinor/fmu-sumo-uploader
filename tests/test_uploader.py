@@ -12,6 +12,7 @@ import pytest
 import yaml
 from sumo.wrapper import SumoClient
 
+from fmu.dataio import CreateCaseMetadata
 from fmu.sumo import uploader
 
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
@@ -25,6 +26,21 @@ ENV = "dev"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level="DEBUG")
+
+
+@pytest.fixture(name="case_metadata")
+def fixture_case_metadata(token: str):
+    """Read global variables and create case metadata"""
+
+    global_variables_file = "tests/data/test_case_080/global_variables.yml"
+    with open(global_variables_file) as f:
+        global_vars = yaml.safe_load(f)
+    return CreateCaseMetadata(
+        config=global_vars,
+        rootfolder="tests/data/test_case_080/",
+        casename="TestCase from fmu.sumo",
+        caseuser="testuser",
+    )
 
 
 def _remove_cached_case_id():
@@ -84,7 +100,7 @@ def _hits_for_case(sumoclient, case_uuid):
 ### TESTS ###
 
 
-def test_initialization(token):
+def test_initialization(token, case_metadata):
     """Assert that the CaseOnDisk object can be initialized"""
     sumoclient = SumoClient(env=ENV, token=token)
 
