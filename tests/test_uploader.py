@@ -470,7 +470,6 @@ def test_invalid_yml_in_case_metadata(token):
     _remove_cached_case_id()
 
     case_file = "tests/data/test_case_080/case_invalid.yml"
-    # Invalid yml file, skip _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     with pytest.warns(UserWarning) as warnings_record:
         uploader.CaseOnDisk(
             case_metadata_path=case_file,
@@ -510,7 +509,6 @@ def test_invalid_yml_in_child_metadata(token, case_metadata):
     # Add a child with invalid yml in its metadata file
     problem_binary_file = "tests/data/test_case_080/surface_invalid.bin"
     # problem_metadata_file = "tests/data/test_case_080/.surface_invalid.bin.yml"
-    # Skip this since file is not valid yml: _update_metadata_file_with_unique_uuid(problem_metadata_file, unique_uuid)
     with pytest.warns(UserWarning, match="No metadata*"):
         e.add_files(problem_binary_file)
 
@@ -543,7 +541,6 @@ def test_schema_error_in_case(token, case_metadata):
     with open(case_metadata, "w") as f:
         yaml.dump(parsed_yaml, f)
 
-    # Cannot update invalid yml file: skip: _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     with pytest.warns(UserWarning, match="Registering case on Sumo failed*"):
         e = uploader.CaseOnDisk(
             case_metadata_path=case_metadata,
@@ -811,7 +808,7 @@ def test_sumo_mode_default(token, case_metadata):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_copy(token, unique_uuid, case_metadata):
+def test_sumo_mode_copy(token, case_metadata):
     """
     Test SUMO_MODE=copy, i.e. not deleting file after upload.
     """

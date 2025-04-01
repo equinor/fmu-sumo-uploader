@@ -1,5 +1,4 @@
 import os
-import uuid
 
 
 def pytest_addoption(parser):
@@ -13,6 +12,3 @@ def pytest_generate_tests(metafunc):
 
     if "token" in metafunc.fixturenames:
         metafunc.parametrize("token", [token])
-
-    if "unique_uuid" in metafunc.fixturenames:
-        metafunc.parametrize("unique_uuid", [uuid.uuid4()])
