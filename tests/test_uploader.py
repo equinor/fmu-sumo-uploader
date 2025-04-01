@@ -29,7 +29,7 @@ logger.setLevel(level="DEBUG")
 
 
 @pytest.fixture(name="case_metadata")
-def fixture_case_metadata(token: str):
+def fixture_case_metadata():
     """Read global variables and create case metadata"""
 
     global_variables_file = "tests/data/test_case_080/global_variables.yml"
