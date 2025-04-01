@@ -35,12 +35,17 @@ def fixture_case_metadata(token: str):
     global_variables_file = "tests/data/test_case_080/global_variables.yml"
     with open(global_variables_file) as f:
         global_vars = yaml.safe_load(f)
-    return CreateCaseMetadata(
+    case_metadata_file = CreateCaseMetadata(
         config=global_vars,
         rootfolder="tests/data/test_case_080/",
         casename="TestCase from fmu.sumo",
         caseuser="testuser",
-    )
+    ).export()
+
+    yield case_metadata_file
+
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(case_metadata_file)
 
 
 def _remove_cached_case_id():
@@ -105,7 +110,7 @@ def test_initialization(token, case_metadata):
     sumoclient = SumoClient(env=ENV, token=token)
 
     uploader.CaseOnDisk(
-        case_metadata_path="tests/data/test_case_080/case.yml",
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
 
@@ -117,17 +122,14 @@ def test_pre_teardown(token):
     _remove_cached_case_id()
 
 
-def test_upload_without_registration(token, unique_uuid):
+def test_upload_without_registration(token, unique_uuid, case_metadata):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
     sumoclient = SumoClient(env=ENV, token=token)
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
-
     case = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
         verbosity="DEBUG",
     )
@@ -135,23 +137,22 @@ def test_upload_without_registration(token, unique_uuid):
     # On purpose NOT calling case.register before adding file here
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, case.fmu_case_uuid
+    )
     case.add_files(child_binary_file)
     with pytest.warns(UserWarning, match="Case is not registered"):
         case.upload(threads=1)
 
 
-def test_case(token):
+def test_case(token, case_metadata):
     """Assert that after uploading case to Sumo, the case is there and is the only one."""
     sumoclient = SumoClient(env=ENV, token=token)
 
     _remove_cached_case_id()
 
-    logger.debug("initialize CaseOnDisk")
-
-    case_file = "tests/data/test_case_080/case.yml"
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
 
@@ -185,7 +186,7 @@ def test_case(token):
     sumoclient.delete(path=path)
 
 
-def test_case_with_restricted_child(token, unique_uuid):
+def test_case_with_restricted_child(token, unique_uuid, case_metadata):
     """Assert that uploading a child with 'classification: restricted' works.
     Assumes that the identity running this test have enough rights for that."""
     sumoclient = SumoClient(env=ENV, token=token)
@@ -194,10 +195,8 @@ def test_case_with_restricted_child(token, unique_uuid):
 
     logger.debug("initialize CaseOnDisk")
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
 
@@ -209,7 +208,9 @@ def test_case_with_restricted_child(token, unique_uuid):
     child_metadata_file = (
         "tests/data/test_case_080/.surface_restricted.bin.yml"
     )
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
     e.upload()
     time.sleep(1)
@@ -223,18 +224,15 @@ def test_case_with_restricted_child(token, unique_uuid):
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child(token, unique_uuid):
+def test_case_with_one_child(token, unique_uuid, case_metadata):
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
 
     _remove_cached_case_id()
 
-    logger.debug("initialize CaseOnDisk")
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -242,7 +240,9 @@ def test_case_with_one_child(token, unique_uuid):
 
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
     e.upload()
     time.sleep(1)
@@ -257,7 +257,7 @@ def test_case_with_one_child(token, unique_uuid):
 
 
 def test_case_with_one_child_and_params(
-    token, unique_uuid, tmp_path, monkeypatch
+    token, unique_uuid, tmp_path, case_metadata, monkeypatch
 ):
     """Upload one file to Sumo. Assert that it is there."""
 
@@ -265,16 +265,16 @@ def test_case_with_one_child_and_params(
 
     _remove_cached_case_id()
 
-    logger.debug("initialize CaseOnDisk")
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
-
     # Create fmu like structure
     case_path = tmp_path / "gorgon"
     case_meta_folder = case_path / "share/metadata"
     case_meta_folder.mkdir(parents=True)
     case_meta_path = case_meta_folder / "fmu_case.yml"
-    case_meta_path.write_text(Path(case_file).read_text(encoding="utf-8"))
+    case_meta_path.write_text(Path(case_metadata).read_text(encoding="utf-8"))
+
+    print("CASE META PATH")
+    print(case_meta_path)
+    print(case_metadata)
 
     real_path = case_path / "realization-0/iter-0"
     share_path = real_path / "share/results/surface/"
@@ -295,7 +295,15 @@ def test_case_with_one_child_and_params(
         "and exists: ",
         config_tmp_path.exists(),
     )
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+
+    e = uploader.CaseOnDisk(
+        case_metadata_path=case_meta_path,
+        sumoclient=sumoclient,
+    )
+
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     shutil.copy(child_metadata_file, share_path / ".surface.bin.yml")
 
     param_file = real_path / "parameters.txt"
@@ -306,10 +314,6 @@ def test_case_with_one_child_and_params(
     monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./")
 
-    e = uploader.CaseOnDisk(
-        case_metadata_path=case_meta_path,
-        sumoclient=sumoclient,
-    )
     e.register()
     time.sleep(1)
 
@@ -347,7 +351,9 @@ def test_case_with_one_child_and_params(
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child_with_affiliate_access(token, unique_uuid):
+def test_case_with_one_child_with_affiliate_access(
+    token, unique_uuid, case_metadata
+):
     """Upload one file to Sumo with affiliate access.
     Assert that it is there."""
 
@@ -355,11 +361,8 @@ def test_case_with_one_child_with_affiliate_access(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    logger.debug("initialize CaseOnDisk")
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -367,7 +370,9 @@ def test_case_with_one_child_with_affiliate_access(token, unique_uuid):
 
     child_binary_file = "tests/data/test_case_080/surface_affiliate.bin"
     child_metadata_file = "tests/data/test_case_080/.surface_affiliate.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
     e.upload()
     time.sleep(1)
@@ -381,18 +386,15 @@ def test_case_with_one_child_with_affiliate_access(token, unique_uuid):
     sumoclient.delete(path=path)
 
 
-def test_case_with_no_children(token, unique_uuid):
+def test_case_with_no_children(token, unique_uuid, case_metadata):
     """Test failure handling when no files are found"""
 
     sumoclient = SumoClient(env=ENV, token=token)
 
     _remove_cached_case_id()
 
-    logger.debug("initialize CaseOnDisk")
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -417,7 +419,7 @@ def test_case_with_no_children(token, unique_uuid):
     sumoclient.delete(path=path)
 
 
-def test_missing_child_metadata(token, unique_uuid):
+def test_missing_child_metadata(token, unique_uuid, case_metadata):
     """
     Try to upload files where one does not have metadata. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -426,10 +428,8 @@ def test_missing_child_metadata(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -437,7 +437,9 @@ def test_missing_child_metadata(token, unique_uuid):
     # Add a valid child
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
 
     # Assert that expected warning is given when the binary file
@@ -489,7 +491,7 @@ def test_invalid_yml_in_case_metadata(token, unique_uuid):
             )
 
 
-def test_invalid_yml_in_child_metadata(token, unique_uuid):
+def test_invalid_yml_in_child_metadata(token, unique_uuid, case_metadata):
     """
     Try to upload child with invalid yml in its metadata file.
     """
@@ -497,10 +499,8 @@ def test_invalid_yml_in_child_metadata(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -508,7 +508,9 @@ def test_invalid_yml_in_child_metadata(token, unique_uuid):
     # Add a valid child
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
 
     # Add a child with invalid yml in its metadata file
@@ -549,7 +551,7 @@ def test_schema_error_in_case(token, unique_uuid):
         e.register()
 
 
-def test_schema_error_in_child(token, unique_uuid):
+def test_schema_error_in_child(token, unique_uuid, case_metadata):
     """
     Try to upload files where one does have metadata with error. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -558,10 +560,8 @@ def test_schema_error_in_child(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -569,13 +569,17 @@ def test_schema_error_in_child(token, unique_uuid):
     # Add a valid child
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
 
     # Add a child with problem in its metadata file
     problem_binary_file = "tests/data/test_case_080/surface_error.bin"
     problem_metadata_file = "tests/data/test_case_080/.surface_error.bin.yml"
-    _update_metadata_file_with_unique_uuid(problem_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        problem_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(problem_binary_file)
 
     e.upload()
@@ -759,7 +763,7 @@ def test_seismic_openvds_file(token, unique_uuid):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_default(token, unique_uuid):
+def test_sumo_mode_default(token, unique_uuid, case_metadata):
     """
     Test that SUMO_MODE defaults to copy, i.e. not deleting file after upload.
     """
@@ -767,10 +771,8 @@ def test_sumo_mode_default(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
     e.register()
@@ -778,7 +780,9 @@ def test_sumo_mode_default(token, unique_uuid):
     # Add a valid child
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
 
     # Ensure that the absolute_path is correctly set in metadatafile
@@ -806,7 +810,7 @@ def test_sumo_mode_default(token, unique_uuid):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_copy(token, unique_uuid):
+def test_sumo_mode_copy(token, unique_uuid, case_metadata):
     """
     Test SUMO_MODE=copy, i.e. not deleting file after upload.
     """
@@ -814,10 +818,8 @@ def test_sumo_mode_copy(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
         sumo_mode="copy",
     )
@@ -826,7 +828,9 @@ def test_sumo_mode_copy(token, unique_uuid):
     # Add a valid child
     child_binary_file = "tests/data/test_case_080/surface.bin"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
 
     # Ensure that the absolute_path is correctly set in metadatafile
@@ -854,7 +858,7 @@ def test_sumo_mode_copy(token, unique_uuid):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_move(token, unique_uuid):
+def test_sumo_mode_move(token, unique_uuid, case_metadata):
     """
     Test SUMO_MODE=move, i.e. deleting file after upload.
     """
@@ -862,10 +866,8 @@ def test_sumo_mode_move(token, unique_uuid):
 
     _remove_cached_case_id()
 
-    case_file = "tests/data/test_case_080/case.yml"
-    _update_metadata_file_with_unique_uuid(case_file, unique_uuid)
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_file,
+        case_metadata_path=case_metadata,
         sumoclient=sumoclient,
         sumo_mode="moVE",  # test case-insensitive
     )
@@ -885,7 +887,9 @@ def test_sumo_mode_move(token, unique_uuid):
     # Add a valid child
     child_binary_file = "tests/data/test_case_080/surface.bin.copy"
     child_metadata_file = "tests/data/test_case_080/.surface.bin.copy.yml"
-    _update_metadata_file_with_unique_uuid(child_metadata_file, unique_uuid)
+    _update_metadata_file_with_unique_uuid(
+        child_metadata_file, e.fmu_case_uuid
+    )
     e.add_files(child_binary_file)
 
     # Ensure that the absolute_path is correctly set in metadatafile
