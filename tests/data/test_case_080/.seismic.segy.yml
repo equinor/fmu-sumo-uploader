@@ -148,7 +148,7 @@ masterdata:
   smda:
     country:
     - identifier: Norway
-      uuid: ad214d85-9999-19da-e053-c918a4889309
+      uuid: ad214d85-8a1d-19da-e053-c918a4889309
     discovery:
     - short_identifier: DROGON
       uuid: ad214d85-8a1d-19da-e053-c918a4889309
