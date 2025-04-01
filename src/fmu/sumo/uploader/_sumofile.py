@@ -208,7 +208,7 @@ class SumoFile:
 
         if result["metadata_upload_response_status_code"] not in [200, 201]:
             logger.warning(
-                "Metadata upload unsuccessful 22222222222, returning "
+                "Metadata upload unsuccessful, returning "
                 + str(result["metadata_upload_response_status_code"])
             )
             return result
