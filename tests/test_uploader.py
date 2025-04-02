@@ -49,8 +49,8 @@ def fixture_case_metadata():
         os.remove(case_metadata_file)
 
 
-@pytest.fixture(name="surface_metadata")
-def fixture_surface_metadata(monkeypatch):
+@pytest.fixture(name="surface_file")
+def fixture_surface_file(monkeypatch):
     """Read global variables and create surface metadata"""
 
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
@@ -254,7 +254,7 @@ def test_case_with_restricted_child(token, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child(token, case_metadata, surface_metadata):
+def test_case_with_one_child(token, case_metadata, surface_file):
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
@@ -268,12 +268,12 @@ def test_case_with_one_child(token, case_metadata, surface_metadata):
     e.register()
     time.sleep(1)
 
-    child_binary_file = "tests/data/test_case_080/surface.bin"
+    # child_binary_file = "tests/data/test_case_080/surface.bin"
     # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
     # _update_metadata_file_with_unique_uuid(
     #     child_metadata_file, e.fmu_case_uuid
     # )
-    e.add_files(child_binary_file)
+    e.add_files(surface_file)
     e.upload()
     time.sleep(1)
 
@@ -504,7 +504,7 @@ def test_invalid_yml_in_case_metadata(token):
             )
 
 
-def test_invalid_yml_in_child_metadata(token, case_metadata):
+def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
     """
     Try to upload child with invalid yml in its metadata file.
     """
@@ -517,12 +517,12 @@ def test_invalid_yml_in_child_metadata(token, case_metadata):
     e.register()
 
     # Add a valid child
-    child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
-    e.add_files(child_binary_file)
+    # child_binary_file = "tests/data/test_case_080/surface.bin"
+    # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
+    # _update_metadata_file_with_unique_uuid(
+    #     child_metadata_file, e.fmu_case_uuid
+    # )
+    e.add_files(surface_file)
 
     # Add a child with invalid yml in its metadata file
     problem_binary_file = "tests/data/test_case_080/surface_invalid.bin"
