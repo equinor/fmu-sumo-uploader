@@ -76,18 +76,21 @@ def fixture_surface_metadata(monkeypatch):
         fformat="irap_binary",
     )
 
-    file = ed.generate_metadata(surf)
+    # Generate metadata for the surface
+    file = ed.export(surf)
 
-    print(file)
-
-    # Update the metadata file using the unique uuid
-    with open("tests/data/test_case_080/.surface.bin.yml", "w") as f:
-        yaml.dump(file, f)
+    # file = ed.generate_metadata(surf)
+    # Store the metadata for uploader to find
+    # with open("tests/data/test_case_080/.surface.bin.yml", "w") as f:
+    # yaml.dump(file, f)
 
     yield file
 
+    # with contextlib.suppress(FileNotFoundError):
+    # os.remove("tests/data/test_case_080/.surface.bin.yml")
+    # Delete the metadata when test is done
     with contextlib.suppress(FileNotFoundError):
-        os.remove("tests/data/test_case_080/.surface.bin.yml")
+        os.remove(file)
 
 
 def _update_metadata_file_with_unique_uuid(metadata_file, unique_case_uuid):
