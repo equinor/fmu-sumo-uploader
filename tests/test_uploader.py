@@ -50,8 +50,12 @@ def fixture_case_metadata():
 
 
 @pytest.fixture(name="surface_metadata")
-def fixture_surface_metadata():
+def fixture_surface_metadata(monkeypatch):
     """Read global variables and create surface metadata"""
+
+    monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_RUNPATH", "./")
 
     global_variables_file = "tests/data/test_case_080/global_variables.yml"
     with open(global_variables_file) as f:
@@ -72,7 +76,6 @@ def fixture_surface_metadata():
         fformat="irap_binary",
     )
 
-    file2 = ed.export(surf)
     file = ed.generate_metadata(surf)
 
     print(file)
