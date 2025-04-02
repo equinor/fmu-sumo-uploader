@@ -286,7 +286,7 @@ def test_case_with_one_child(token, case_metadata, surface_metadata):
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child_and_params(
+def test_case_with_one_child_and_parameters_txt(
     token, tmp_path, case_metadata, monkeypatch
 ):
     """Upload one file to Sumo. Assert that it is there."""
