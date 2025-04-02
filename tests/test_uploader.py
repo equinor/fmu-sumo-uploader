@@ -79,15 +79,9 @@ def fixture_surface_file(monkeypatch):
     # Generate metadata for the surface
     file = ed.export(surf)
 
-    # file = ed.generate_metadata(surf)
-    # Store the metadata for uploader to find
-    # with open("tests/data/test_case_080/.surface.bin.yml", "w") as f:
-    # yaml.dump(file, f)
-
     yield file
 
-    # with contextlib.suppress(FileNotFoundError):
-    # os.remove("tests/data/test_case_080/.surface.bin.yml")
+    # TODO: Delete metadata AND the grid file
     # Delete the metadata when test is done
     with contextlib.suppress(FileNotFoundError):
         os.remove(file)
@@ -158,7 +152,7 @@ def test_pre_teardown():
     and prepare for running test suite again."""
 
 
-def test_upload_without_registration(token, case_metadata):
+def test_upload_without_registration(token, case_metadata, surface_file):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -168,13 +162,7 @@ def test_upload_without_registration(token, case_metadata):
         verbosity="DEBUG",
     )
 
-    # On purpose NOT calling case.register before adding file here
-    child_binary_file = "tests/data/test_case_080/surface.bin"
-    # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    # _update_metadata_file_with_unique_uuid(
-    #     child_metadata_file, case.fmu_case_uuid
-    # )
-    case.add_files(child_binary_file)
+    case.add_files(surface_file)
     with pytest.warns(UserWarning, match="Case is not registered"):
         case.upload(threads=1)
 
@@ -268,11 +256,6 @@ def test_case_with_one_child(token, case_metadata, surface_file):
     e.register()
     time.sleep(1)
 
-    # child_binary_file = "tests/data/test_case_080/surface.bin"
-    # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    # _update_metadata_file_with_unique_uuid(
-    #     child_metadata_file, e.fmu_case_uuid
-    # )
     e.add_files(surface_file)
     e.upload()
     time.sleep(1)
@@ -437,7 +420,7 @@ def test_case_with_no_children(token, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_missing_child_metadata(token, case_metadata):
+def test_missing_child_metadata(token, case_metadata, surface_file):
     """
     Try to upload files where one does not have metadata. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -451,12 +434,7 @@ def test_missing_child_metadata(token, case_metadata):
     e.register()
 
     # Add a valid child
-    child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
-    e.add_files(child_binary_file)
+    e.add_files(surface_file)
 
     # Assert that expected warning is given when the binary file
     # do not have a companion metadata file
@@ -517,11 +495,6 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
     e.register()
 
     # Add a valid child
-    # child_binary_file = "tests/data/test_case_080/surface.bin"
-    # child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    # _update_metadata_file_with_unique_uuid(
-    #     child_metadata_file, e.fmu_case_uuid
-    # )
     e.add_files(surface_file)
 
     # Add a child with invalid yml in its metadata file
@@ -565,7 +538,7 @@ def test_schema_error_in_case(token, case_metadata):
         e.register()
 
 
-def test_schema_error_in_child(token, case_metadata):
+def test_schema_error_in_child(token, case_metadata, surface_file):
     """
     Try to upload files where one does have metadata with error. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -579,12 +552,7 @@ def test_schema_error_in_child(token, case_metadata):
     e.register()
 
     # Add a valid child
-    child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
-    e.add_files(child_binary_file)
+    e.add_files(surface_file)
 
     # Add a child with problem in its metadata file
     problem_binary_file = "tests/data/test_case_080/surface_error.bin"
