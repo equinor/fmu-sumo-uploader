@@ -519,11 +519,20 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
     # Add a valid child
     e.add_files(surface_file)
 
-    # Add a child with invalid yml in its metadata file
-    problem_binary_file = "tests/data/test_case_080/surface_invalid.bin"
-    # problem_metadata_file = "tests/data/test_case_080/.surface_invalid.bin.yml"
+    invalid_metadata_file = "tests/data/test_case_080/.surface_invalid.bin.yml"
+    # Create a metadata file with invalid yml
+    with open(invalid_metadata_file, "w") as f:
+        yaml.dump("This is invalid yml", f)
+
+    # Make copy of binary to match the modified metadata file
+    surface_file_copy = "tests/data/test_case_080/surface_invalid.bin"
+    shutil.copy2(
+        surface_file,
+        surface_file_copy,
+    )
+
     with pytest.warns(UserWarning, match="No metadata*"):
-        e.add_files(problem_binary_file)
+        e.add_files(surface_file_copy)
 
     e.upload()
     time.sleep(1)
@@ -536,6 +545,9 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
+    os.remove(surface_file_copy)
+    os.remove(invalid_metadata_file)
 
 
 def test_schema_error_in_case(token, case_metadata):
