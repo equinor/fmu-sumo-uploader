@@ -115,10 +115,8 @@ def fixture_segy_file(monkeypatch):
     ed = ExportData(
         config=global_vars,
         name="seismic",
-        unit="",
         content="seismic",
-        vertical_domain="depth",
-        timedata=None,
+        content_metadata={"attribute": "owc", "is_discrete": False},
         casepath="tests/data/test_case_080/",
     )
 
@@ -132,8 +130,24 @@ def fixture_segy_file(monkeypatch):
     yield file
 
     # Delete grid file when test is done
-    # with contextlib.suppress(FileNotFoundError):
-    #     os.remove(file)
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(file)
+
+
+@pytest.fixture(name="segy_metadata_file")
+def fixture_segy_metadata_file(segy_file):
+    """Get path to the metadata for segy_file"""
+
+    dir_name = os.path.dirname(segy_file)
+    basename = os.path.basename(segy_file)
+
+    file = os.path.join(dir_name, f".{basename}.yml")
+
+    yield file
+
+    # Delete the metadata when test is done
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(file)
 
 
 def _update_metadata_file_with_unique_uuid(metadata_file, unique_case_uuid):
@@ -731,7 +745,9 @@ def test_openvds_available():
     sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
     reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
 )
-def test_seismic_openvds_file(token, case_metadata, segy_file):
+def test_seismic_openvds_file(
+    token, case_metadata, segy_file, segy_metadata_file
+):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -742,13 +758,7 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     e.register()
     time.sleep(1)
 
-    child_binary_file = "tests/data/test_case_080/seismic.segy"
-    child_metadata_file = "tests/data/test_case_080/.seismic.segy.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
-    segy_filepath = child_binary_file
-    e.add_files(segy_filepath)
+    e.add_files(segy_file)
     e.upload()
     time.sleep(1)
 
@@ -819,7 +829,7 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
                 assert os.path.isfile(exported_filepath)
                 assert (
                     os.stat(exported_filepath).st_size
-                    == os.stat(segy_filepath).st_size
+                    == os.stat(segy_file).st_size
                 )
                 if os.path.exists(exported_filepath):
                     os.remove(exported_filepath)
