@@ -220,12 +220,12 @@ def test_case(token, case_metadata):
     sumoclient.delete(path=path)
 
 
-def test_case_with_restricted_child(token, case_metadata):
+def test_case_with_restricted_child(
+    token, case_metadata, surface_file, surface_metadata_file
+):
     """Assert that uploading a child with 'classification: restricted' works.
     Assumes that the identity running this test have enough rights for that."""
     sumoclient = SumoClient(env=ENV, token=token)
-
-    logger.debug("initialize CaseOnDisk")
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
@@ -236,14 +236,25 @@ def test_case_with_restricted_child(token, case_metadata):
     e.register()
     time.sleep(1)
 
-    child_binary_file = "tests/data/test_case_080/surface_restricted.bin"
-    child_metadata_file = (
+    # Create a metadata file with access.affiliate_roles set
+    with open(surface_metadata_file) as f:
+        parsed_yaml = yaml.safe_load(f)
+    parsed_yaml["access"]["ssdl"]["access_level"] = "restricted"
+    parsed_yaml["access"]["classification"] = "restricted"
+    restricted_metadata_file = (
         "tests/data/test_case_080/.surface_restricted.bin.yml"
     )
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
+    with open(restricted_metadata_file, "w") as f:
+        yaml.dump(parsed_yaml, f)
+
+    # Make copy of binary to match the modified metadata file
+    surface_file_copy = "tests/data/test_case_080/surface_restricted.bin"
+    shutil.copy(
+        surface_file,
+        surface_file_copy,
     )
-    e.add_files(child_binary_file)
+
+    e.add_files(surface_file_copy)
     e.upload()
     time.sleep(1)
 
@@ -254,6 +265,9 @@ def test_case_with_restricted_child(token, case_metadata):
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
+    os.remove(surface_file_copy)
+    os.remove(restricted_metadata_file)
 
 
 def test_case_with_one_child(token, case_metadata, surface_file):
@@ -390,7 +404,7 @@ def test_case_with_one_child_with_affiliate_access(
 
     # Make copy of binary to match the modified metadata file
     surface_file_copy = "tests/data/test_case_080/surface_affiliate.bin"
-    shutil.copy2(
+    shutil.copy(
         surface_file,
         surface_file_copy,
     )
@@ -526,7 +540,7 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
 
     # Make copy of binary to match the modified metadata file
     surface_file_copy = "tests/data/test_case_080/surface_invalid.bin"
-    shutil.copy2(
+    shutil.copy(
         surface_file,
         surface_file_copy,
     )
@@ -605,7 +619,7 @@ def test_schema_error_in_child(
 
     # Make copy of binary to match the modified metadata file
     error_surface_file = "tests/data/test_case_080/surface_error.bin"
-    shutil.copy2(
+    shutil.copy(
         surface_file,
         error_surface_file,
     )
@@ -894,11 +908,11 @@ def test_sumo_mode_move(
     surface_metadata_file_copy = (
         "tests/data/test_case_080/.surface.bin.copy.yml"
     )
-    shutil.copy2(
+    shutil.copy(
         surface_file,
         surface_file_copy,
     )
-    shutil.copy2(
+    shutil.copy(
         surface_metadata_file,
         surface_metadata_file_copy,
     )
