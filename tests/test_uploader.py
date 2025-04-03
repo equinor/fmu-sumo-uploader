@@ -748,7 +748,9 @@ def test_seismic_openvds_file(token, case_metadata):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_default(token, case_metadata):
+def test_sumo_mode_default(
+    token, case_metadata, surface_file, surface_metadata_file
+):
     """
     Test that SUMO_MODE defaults to copy, i.e. not deleting file after upload.
     """
@@ -761,16 +763,7 @@ def test_sumo_mode_default(token, case_metadata):
     e.register()
 
     # Add a valid child
-    child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
-    e.add_files(child_binary_file)
-
-    # Ensure that the absolute_path is correctly set in metadatafile
-    # (The test files have dummy value for absolute_path)
-    _update_metadata_file_absolute_path(child_metadata_file)
+    e.add_files(surface_file)
 
     e.upload()
     time.sleep(1)
@@ -780,8 +773,8 @@ def test_sumo_mode_default(token, case_metadata):
     assert total == 2
 
     # Assert that child file and metadatafile are not deleted
-    assert os.path.exists(child_binary_file)
-    assert os.path.exists(child_metadata_file)
+    assert os.path.exists(surface_file)
+    assert os.path.exists(surface_metadata_file)
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
