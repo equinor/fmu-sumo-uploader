@@ -75,7 +75,7 @@ def fixture_surface_file(monkeypatch):
         fformat="irap_binary",
     )
 
-    # Generate metadata for the surface
+    # Export surface and generate metadata
     file = ed.export(surf)
 
     yield file
@@ -124,28 +124,12 @@ def fixture_segy_file(monkeypatch):
         "tests/data/test_case_080/seismic.segy", fformat="segy"
     )
 
-    # Generate metadata for the file
+    # Export and generate metadata
     file = ed.export(segy_file)
 
     yield file
 
     # Delete grid file when test is done
-    with contextlib.suppress(FileNotFoundError):
-        os.remove(file)
-
-
-@pytest.fixture(name="segy_metadata_file")
-def fixture_segy_metadata_file(segy_file):
-    """Get path to the metadata for segy_file"""
-
-    dir_name = os.path.dirname(segy_file)
-    basename = os.path.basename(segy_file)
-
-    file = os.path.join(dir_name, f".{basename}.yml")
-
-    yield file
-
-    # Delete the metadata when test is done
     with contextlib.suppress(FileNotFoundError):
         os.remove(file)
 
@@ -169,11 +153,6 @@ def test_initialization(token, case_metadata):
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
     )
-
-
-def test_pre_teardown():
-    """Run teardown first to remove remnants from other test runs
-    and prepare for running test suite again."""
 
 
 def test_upload_without_registration(token, case_metadata, surface_file):
@@ -366,20 +345,18 @@ def test_case_with_one_child_and_parameters_txt(
         "/search", {"$query": query, "$size": 100}
     ).json()
     hits = search_results["hits"]
-    results = hits["hits"]
+    total = hits["total"]["value"]
     expected_res = [
         "case",
         "dictionary",
         "surface",
     ]
-    found_res = []
+    assert total == len(expected_res)
+
+    results = hits["hits"]
     for result in results:
         class_type = result["_source"]["class"]
-        found_res.append(class_type)
         assert class_type in expected_res
-
-    total = hits["total"]["value"]
-    assert total == len(expected_res)
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
@@ -706,9 +683,7 @@ def test_openvds_available():
     sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
     reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
 )
-def test_seismic_openvds_file(
-    token, case_metadata, segy_file, segy_metadata_file
-):
+def test_seismic_openvds_file(token, case_metadata, segy_file):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -917,21 +892,6 @@ def test_sumo_mode_move(
     )
     e.register()
 
-    # Make copy of binary and metadatafile, so the delete
-    # is not messing with git status
-    # surface_file_copy = "tests/data/test_case_080/surface.bin.copy"
-    # surface_metadata_file_copy = (
-    #     "tests/data/test_case_080/.surface.bin.copy.yml"
-    # )
-    # shutil.copy(
-    #     surface_file,
-    #     surface_file_copy,
-    # )
-    # shutil.copy(
-    #     surface_metadata_file,
-    #     surface_metadata_file_copy,
-    # )
-
     # Add a valid child
     e.add_files(surface_file)
 
@@ -942,7 +902,7 @@ def test_sumo_mode_move(
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
     assert total == 2
 
-    # Assert that copy files are deleted
+    # Assert that the files on disk are deleted
     assert not os.path.exists(surface_file)
     assert not os.path.exists(surface_metadata_file)
 
