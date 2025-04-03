@@ -560,7 +560,9 @@ def test_schema_error_in_case(token, case_metadata):
         e.register()
 
 
-def test_schema_error_in_child(token, case_metadata, surface_file):
+def test_schema_error_in_child(
+    token, case_metadata, surface_file, surface_metadata_file
+):
     """
     Try to upload files where one does have metadata with error. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -576,13 +578,27 @@ def test_schema_error_in_child(token, case_metadata, surface_file):
     # Add a valid child
     e.add_files(surface_file)
 
-    # Add a child with problem in its metadata file
-    problem_binary_file = "tests/data/test_case_080/surface_error.bin"
-    problem_metadata_file = "tests/data/test_case_080/.surface_error.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        problem_metadata_file, e.fmu_case_uuid
+    # Create a metadata file with an error
+    with open(surface_metadata_file) as f:
+        parsed_yaml = yaml.safe_load(f)
+    parsed_yaml["fmu"]["realizationiswrong"] = parsed_yaml["fmu"][
+        "realization"
+    ]
+    del parsed_yaml["fmu"]["realization"]
+    parsed_yaml["masterdata_INVALID_SCHEMA"] = parsed_yaml["masterdata"]
+    del parsed_yaml["masterdata"]
+    error_metadata_file = "tests/data/test_case_080/.surface_error.bin.yml"
+    with open(error_metadata_file, "w") as f:
+        yaml.dump(parsed_yaml, f)
+
+    # Make copy of binary to match the modified metadata file
+    error_surface_file = "tests/data/test_case_080/surface_error.bin"
+    shutil.copy2(
+        surface_file,
+        error_surface_file,
     )
-    e.add_files(problem_binary_file)
+
+    e.add_files(error_surface_file)
 
     e.upload()
     time.sleep(1)
@@ -595,6 +611,9 @@ def test_schema_error_in_child(token, case_metadata, surface_file):
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
+    os.remove(error_surface_file)
+    os.remove(error_metadata_file)
 
 
 def _get_segy_path(segy_command):
