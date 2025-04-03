@@ -328,14 +328,14 @@ def test_case_with_one_child_and_parameters_txt(
     shutil.copy(surface_file, tmp_binary_file_location)
     shutil.copy(fmu_globals_config, config_tmp_path)
     shutil.copy(surface_metadata_file, share_path / ".surface.bin.yml")
+    shutil.copy(
+        "tests/data/test_case_080/parameters.txt", real_path / "parameters.txt"
+    )
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_meta_path,
         sumoclient=sumoclient,
     )
-
-    param_file = real_path / "parameters.txt"
-    param_file.write_text("TESTINGTESTING 1")
 
     monkeypatch.chdir(real_path)
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
