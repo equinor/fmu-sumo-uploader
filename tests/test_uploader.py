@@ -55,7 +55,7 @@ def fixture_surface_file(monkeypatch):
 
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_RUNPATH", "./")
+    monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/test_case_080/")
 
     global_variables_file = "tests/data/test_case_080/global_variables.yml"
     with open(global_variables_file) as f:
@@ -67,7 +67,6 @@ def fixture_surface_file(monkeypatch):
         content="depth",
         vertical_domain="depth",
         timedata=None,
-        fmu_context="case",
         casepath="tests/data/test_case_080/",
     )
 
@@ -81,7 +80,22 @@ def fixture_surface_file(monkeypatch):
 
     yield file
 
-    # TODO: Delete metadata AND the grid file
+    # Delete grid file when test is done
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(file)
+
+
+@pytest.fixture(name="surface_metadata_file")
+def fixture_surface_metadata_file(surface_file):
+    """Get path to the metadata for surface_file"""
+
+    dir_name = os.path.dirname(surface_file)
+    basename = os.path.basename(surface_file)
+
+    file = os.path.join(dir_name, f".{basename}.yml")
+
+    yield file
+
     # Delete the metadata when test is done
     with contextlib.suppress(FileNotFoundError):
         os.remove(file)
@@ -270,7 +284,12 @@ def test_case_with_one_child(token, case_metadata, surface_file):
 
 
 def test_case_with_one_child_and_parameters_txt(
-    token, tmp_path, case_metadata, monkeypatch
+    token,
+    tmp_path,
+    case_metadata,
+    monkeypatch,
+    surface_file,
+    surface_metadata_file,
 ):
     """Upload one file to Sumo. Assert that it is there."""
 
@@ -290,28 +309,16 @@ def test_case_with_one_child_and_parameters_txt(
 
     share_path.mkdir(parents=True)
     fmu_config_folder.mkdir(parents=True)
-    child_binary_file = "tests/data/test_case_080/surface.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface.bin.yml"
     fmu_globals_config = "tests/data/test_case_080/global_variables.yml"
     tmp_binary_file_location = str(share_path / "surface.bin")
-    shutil.copy(child_binary_file, tmp_binary_file_location)
+    shutil.copy(surface_file, tmp_binary_file_location)
     shutil.copy(fmu_globals_config, config_tmp_path)
-    print(
-        "Fmu config path: ",
-        config_tmp_path,
-        "and exists: ",
-        config_tmp_path.exists(),
-    )
+    shutil.copy(surface_metadata_file, share_path / ".surface.bin.yml")
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_meta_path,
         sumoclient=sumoclient,
     )
-
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
-    )
-    shutil.copy(child_metadata_file, share_path / ".surface.bin.yml")
 
     param_file = real_path / "parameters.txt"
     param_file.write_text("TESTINGTESTING 1")
@@ -326,8 +333,6 @@ def test_case_with_one_child_and_parameters_txt(
 
     e.add_files(tmp_binary_file_location)
     e.upload()
-    # search_string = f"{str(share_path)}/*"
-    # sumo_upload_main(case_path, search_string, ENV, search_string, 1)
     time.sleep(1)
 
     query = (
