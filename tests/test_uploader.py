@@ -472,10 +472,17 @@ def test_missing_child_metadata(token, case_metadata, surface_file):
     # Add a valid child
     e.add_files(surface_file)
 
+    # Make a copy of the surface without copying companion metadata
+    surface_file_copy = "tests/data/test_case_080/surface_no_metadata.bin"
+    shutil.copy(
+        surface_file,
+        surface_file_copy,
+    )
+
     # Assert that expected warning is given when the binary file
     # do not have a companion metadata file
     with pytest.warns(UserWarning) as warnings_record:
-        e.add_files("tests/data/test_case_080/surface_no_metadata.bin")
+        e.add_files(surface_file_copy)
         for _ in warnings_record:
             assert len(warnings_record) == 1, warnings_record
             assert warnings_record[0].message.args[0].startswith(
@@ -495,6 +502,8 @@ def test_missing_child_metadata(token, case_metadata, surface_file):
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
+    os.remove(surface_file_copy)
 
 
 def test_invalid_yml_in_case_metadata(token):
