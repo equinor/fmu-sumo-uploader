@@ -919,18 +919,18 @@ def test_sumo_mode_move(
 
     # Make copy of binary and metadatafile, so the delete
     # is not messing with git status
-    surface_file_copy = "tests/data/test_case_080/surface.bin.copy"
-    surface_metadata_file_copy = (
-        "tests/data/test_case_080/.surface.bin.copy.yml"
-    )
-    shutil.copy(
-        surface_file,
-        surface_file_copy,
-    )
-    shutil.copy(
-        surface_metadata_file,
-        surface_metadata_file_copy,
-    )
+    # surface_file_copy = "tests/data/test_case_080/surface.bin.copy"
+    # surface_metadata_file_copy = (
+    #     "tests/data/test_case_080/.surface.bin.copy.yml"
+    # )
+    # shutil.copy(
+    #     surface_file,
+    #     surface_file_copy,
+    # )
+    # shutil.copy(
+    #     surface_metadata_file,
+    #     surface_metadata_file_copy,
+    # )
 
     # Add a valid child
     e.add_files(surface_file)
@@ -943,12 +943,8 @@ def test_sumo_mode_move(
     assert total == 2
 
     # Assert that copy files are deleted
-    assert not os.path.exists(surface_file_copy)
-    assert not os.path.exists(surface_metadata_file_copy)
-
-    # Assert that original files are not deleted
-    assert os.path.exists(surface_file)
-    assert os.path.exists(surface_metadata_file)
+    assert not os.path.exists(surface_file)
+    assert not os.path.exists(surface_metadata_file)
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
