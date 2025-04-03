@@ -843,7 +843,9 @@ def test_sumo_mode_move(
     # Make copy of binary and metadatafile, so the delete
     # is not messing with git status
     surface_file_copy = "tests/data/test_case_080/surface.bin.copy"
-    surface_metadata_file_copy = "tests/data/test_case_080/.surface.bin.copy.yml"
+    surface_metadata_file_copy = (
+        "tests/data/test_case_080/.surface.bin.copy.yml"
+    )
     shutil.copy2(
         surface_file,
         surface_file_copy,
