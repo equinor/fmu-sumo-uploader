@@ -22,6 +22,4 @@ masterdata:
 access:
   asset:
     name: Drogon
-  ssdl:
-    access_level: internal
-    rep_include: true
+  classification: internal
