@@ -150,45 +150,6 @@ def fixture_segy_metadata_file(segy_file):
         os.remove(file)
 
 
-def _update_metadata_file_with_unique_uuid(metadata_file, unique_case_uuid):
-    """Updates an existing sumo metadata file with unique case uuid.
-    (To be able to run tests in parallell towards Sumo server,
-    unique case uuids must be used.)
-    """
-
-    # Read the sumo metadata file given as input
-    with open(metadata_file) as f:
-        parsed_yaml = yaml.safe_load(f)
-
-    # Update case uuid with the given unique uuid
-    parsed_yaml["fmu"]["case"]["uuid"] = str(unique_case_uuid)
-
-    # Update the metadata file using the unique uuid
-    with open(metadata_file, "w") as f:
-        yaml.dump(parsed_yaml, f)
-
-
-def _update_metadata_file_absolute_path(metadata_file):
-    """Updates an existing sumo metadata file with correct
-    absolute_path.
-    (SUMO_MODE=move depends on absolute_path for deleting files.)
-    """
-
-    # Read the sumo metadata file given as input
-    with open(metadata_file) as f:
-        parsed_yaml = yaml.safe_load(f)
-
-    # Update absolute_path
-    parsed_yaml["file"]["absolute_path"] = os.path.join(
-        os.getcwd(), metadata_file
-    )
-    print(os.path.join(os.getcwd(), metadata_file))
-
-    # Update the metadata file
-    with open(metadata_file, "w") as f:
-        yaml.dump(parsed_yaml, f)
-
-
 def _hits_for_case(sumoclient, case_uuid):
     query = f"fmu.case.uuid:{case_uuid} AND NOT class:iteration AND NOT class:realization"
     search_results = sumoclient.get(
@@ -420,7 +381,7 @@ def test_case_with_one_child_and_parameters_txt(
     total = hits["total"]["value"]
     assert total == len(expected_res)
 
-    # # Delete this case
+    # Delete this case
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
@@ -993,22 +954,3 @@ def test_sumo_mode_move(
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
-
-
-def test_teardown():
-    """Teardown all testdata between every test"""
-
-    # Set all the metadata files back to same case uuid as before, to avoid
-    # git reporting changes.
-    test_dir = "tests/data/test_case_080/"
-    files = os.listdir(test_dir)
-    for f in files:
-        if (
-            f.endswith(".yml")
-            and f.startswith(".")
-            and not f.__contains__("invalid")
-        ):
-            dest_file = test_dir + os.path.sep + f
-            _update_metadata_file_with_unique_uuid(
-                dest_file, "11111111-1111-1111-1111-111111111111"
-            )
