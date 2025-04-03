@@ -363,7 +363,9 @@ def test_case_with_one_child_and_parameters_txt(
     sumoclient.delete(path=path)
 
 
-def test_case_with_one_child_with_affiliate_access(token, case_metadata):
+def test_case_with_one_child_with_affiliate_access(
+    token, case_metadata, surface_file, surface_metadata_file
+):
     """Upload one file to Sumo with affiliate access.
     Assert that it is there."""
 
@@ -376,12 +378,24 @@ def test_case_with_one_child_with_affiliate_access(token, case_metadata):
     e.register()
     time.sleep(1)
 
-    child_binary_file = "tests/data/test_case_080/surface_affiliate.bin"
-    child_metadata_file = "tests/data/test_case_080/.surface_affiliate.bin.yml"
-    _update_metadata_file_with_unique_uuid(
-        child_metadata_file, e.fmu_case_uuid
+    # Create a metadata file with access.affiliate_roles set
+    with open(surface_metadata_file) as f:
+        parsed_yaml = yaml.safe_load(f)
+    parsed_yaml["access"]["affiliate_roles"] = ["DROGON-AFFILIATE"]
+    affiliate_access_metadata_file = (
+        "tests/data/test_case_080/.surface_affiliate.bin.yml"
     )
-    e.add_files(child_binary_file)
+    with open(affiliate_access_metadata_file, "w") as f:
+        yaml.dump(parsed_yaml, f)
+
+    # Make copy of binary to match the modified metadata file
+    surface_file_copy = "tests/data/test_case_080/surface_affiliate.bin"
+    shutil.copy2(
+        surface_file,
+        surface_file_copy,
+    )
+
+    e.add_files(surface_file_copy)
     e.upload()
     time.sleep(1)
 
@@ -392,6 +406,9 @@ def test_case_with_one_child_with_affiliate_access(token, case_metadata):
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
+    os.remove(surface_file_copy)
+    os.remove(affiliate_access_metadata_file)
 
 
 def test_case_with_no_children(token, case_metadata):
