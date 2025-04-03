@@ -101,6 +101,41 @@ def fixture_surface_metadata_file(surface_file):
         os.remove(file)
 
 
+@pytest.fixture(name="segy_file")
+def fixture_segy_file(monkeypatch):
+    """Create metadata for seismic.segy"""
+
+    monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/test_case_080/")
+
+    global_variables_file = "tests/data/test_case_080/global_variables.yml"
+    with open(global_variables_file) as f:
+        global_vars = yaml.safe_load(f)
+    ed = ExportData(
+        config=global_vars,
+        name="seismic",
+        unit="",
+        content="seismic",
+        vertical_domain="depth",
+        timedata=None,
+        casepath="tests/data/test_case_080/",
+    )
+
+    segy_file = xtgeo.cube_from_file(
+        "tests/data/test_case_080/seismic.segy", fformat="segy"
+    )
+
+    # Generate metadata for the file
+    file = ed.export(segy_file)
+
+    yield file
+
+    # Delete grid file when test is done
+    # with contextlib.suppress(FileNotFoundError):
+    #     os.remove(file)
+
+
 def _update_metadata_file_with_unique_uuid(metadata_file, unique_case_uuid):
     """Updates an existing sumo metadata file with unique case uuid.
     (To be able to run tests in parallell towards Sumo server,
@@ -696,7 +731,7 @@ def test_openvds_available():
     sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
     reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
 )
-def test_seismic_openvds_file(token, case_metadata):
+def test_seismic_openvds_file(token, case_metadata, segy_file):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
     sumoclient = SumoClient(env=ENV, token=token)
 
