@@ -12,3 +12,5 @@ def pytest_generate_tests(metafunc):
 
     if "token" in metafunc.fixturenames:
         metafunc.parametrize("token", [token])
+
+    os.environ["DEV_SCHEMA"] = "1"  # use fmu-dataio dev schema
