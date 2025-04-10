@@ -122,6 +122,18 @@ class SumoFile:
             )
             return result
 
+        file_case_uuid = self.metadata["fmu"]["case"]["uuid"]
+        if sumo_parent_id != file_case_uuid:
+            err_msg = f"File upload cannot be attempted, file case.uuid {file_case_uuid} does not match parent case.uuid {sumo_parent_id}"
+            result.update(
+                {
+                    "status": "rejected",
+                    "metadata_upload_response_status_code": 500,
+                    "metadata_upload_response_text": err_msg,
+                }
+            )
+            return result
+
         _t0_metadata = time.perf_counter()
 
         # Uploader converts segy-files to OpenVDS:
