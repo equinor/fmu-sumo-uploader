@@ -74,7 +74,9 @@ def get_parameter_file(parameters_path, config_path):
     return paramfile
 
 
-def maybe_upload_realization_and_ensemble_and_iteration(sumoclient, base_metadata):
+def maybe_upload_realization_and_ensemble_and_iteration(
+    sumoclient, base_metadata
+):
     realization_uuid = base_metadata["fmu"]["realization"]["uuid"]
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
     iteration_uuid = base_metadata["fmu"]["iteration"]["uuid"]
@@ -82,7 +84,11 @@ def maybe_upload_realization_and_ensemble_and_iteration(sumoclient, base_metadat
     hits = sumoclient.post(
         "/search",
         json={
-            "query": {"ids": {"values": [realization_uuid, ensemble_uuid, iteration_uuid]}},
+            "query": {
+                "ids": {
+                    "values": [realization_uuid, ensemble_uuid, iteration_uuid]
+                }
+            },
             "_source": ["class"],
         },
     ).json()["hits"]["hits"]
@@ -114,9 +120,7 @@ def maybe_upload_realization_and_ensemble_and_iteration(sumoclient, base_metadat
             del ensemble_metadata["fmu"]["realization"]
             ensemble_metadata["class"] = "ensemble"
             ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
-            sumoclient.post(
-                f"/objects('{case_uuid}')", json=ensemble_metadata
-            )
+            sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
 
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
 
