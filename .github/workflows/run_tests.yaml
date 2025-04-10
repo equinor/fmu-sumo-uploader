@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/run_tests_on_uploads_from_komodo.yaml
   notify_on_failure:
     needs: [run_uploader_tests, run_tests_on_uploads_from_komodo]
-    if: ${{ github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
+    if: ${{ always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
       - name: Notify on Slack
