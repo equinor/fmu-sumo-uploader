@@ -168,6 +168,15 @@ def test_upload_without_registration(token, case_metadata, surface_file):
         case.upload(threads=1)
 
 
+def test_validate_schema(token, case_metadata):
+    """Assert when schema is not valid"""
+    sumoclient = SumoClient(env=ENV, token=token)
+    with open(case_metadata, "r") as f:
+        parsed_yaml = yaml.safe_load(f)
+    response = sumoclient.post(path="/json-validate", json=parsed_yaml).json()
+    assert response.get("valid") is True
+
+
 def test_case(token, case_metadata):
     """Assert that after uploading case to Sumo, the case is there and is the only one."""
     sumoclient = SumoClient(env=ENV, token=token)
