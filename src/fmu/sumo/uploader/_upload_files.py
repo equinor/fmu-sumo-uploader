@@ -74,20 +74,14 @@ def get_parameter_file(parameters_path, config_path):
     return paramfile
 
 
-def maybe_upload_realization_and_ensemble(
-    sumoclient, base_metadata
-):
+def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
     realization_uuid = base_metadata["fmu"]["realization"]["uuid"]
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
 
     hits = sumoclient.post(
         "/search",
         json={
-            "query": {
-                "ids": {
-                    "values": [realization_uuid, ensemble_uuid]
-                }
-            },
+            "query": {"ids": {"values": [realization_uuid, ensemble_uuid]}},
             "_source": ["class"],
         },
     ).json()["hits"]["hits"]
