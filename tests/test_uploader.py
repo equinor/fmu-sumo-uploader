@@ -341,7 +341,9 @@ def test_case_with_one_child_and_parameters_txt(
     e.upload()
     time.sleep(1)
 
-    query = f"{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
+    query = (
+        f"{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
+    )
     search_results = sumoclient.get(
         "/search", {"$query": query, "$size": 100}
     ).json()
