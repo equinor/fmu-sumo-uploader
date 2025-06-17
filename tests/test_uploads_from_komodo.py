@@ -123,7 +123,7 @@ def test_case_surfaces(explorer: Explorer):
     perfect_cases = 0
     for case in cases:
         realizations = len(case.realizations)
-        iter_count = 0
+        ens_count = 0
         real_count = 0
         preproc_count = 0
         for surf in case.surfaces:
@@ -132,21 +132,21 @@ def test_case_surfaces(explorer: Explorer):
             assert surf.tagname
             if surf.metadata.get("fmu").get("aggregation") is not None:
                 continue
-            if surf.iteration is not None:
-                iter_count += 1
+            if surf.ensemble is not None:
+                ens_count += 1
             if surf.realization is not None:
                 real_count += 1
-            if surf.iteration is None and surf.realization is None:
+            if surf.ensemble is None and surf.realization is None:
                 preproc_count += 1
         if (
-            iter_count >= 54 * realizations
+            ens_count >= 54 * realizations
             and real_count >= 54 * realizations
             and preproc_count >= 33
         ):
             print(
                 "'Perfect' surface case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 preproc_count,
                 realizations,
@@ -156,7 +156,7 @@ def test_case_surfaces(explorer: Explorer):
             print(
                 "'NOT perfect' surface case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 preproc_count,
                 realizations,
@@ -183,7 +183,7 @@ def test_case_tables(explorer: Explorer):
     perfect_cases = 0
     for case in cases:
         realizations = len(case.realizations)
-        iter_count = 0
+        ens_count = 0
         real_count = 0
         tagname_count = 0
         # SIM2SUMO uploads:
@@ -196,8 +196,8 @@ def test_case_tables(explorer: Explorer):
             assert tbl.name
             if tbl.metadata.get("fmu").get("aggregation") is not None:
                 continue
-            if tbl.iteration is not None:
-                iter_count += 1
+            if tbl.ensemble is not None:
+                ens_count += 1
             if tbl.realization is not None:
                 real_count += 1
             if tbl.tagname is not None:
@@ -209,7 +209,7 @@ def test_case_tables(explorer: Explorer):
             if tbl.name == "DROGON" and tbl.tagname == "summary":
                 drogon_summary_count += 1
         if (
-            iter_count >= 7 * realizations
+            ens_count >= 7 * realizations
             and real_count >= 7 * realizations
             and tagname_count >= 7 * realizations
             and drogon_rft_count >= 1 * realizations
@@ -219,7 +219,7 @@ def test_case_tables(explorer: Explorer):
             print(
                 "'Perfect' table case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 tagname_count,
                 realizations,
@@ -229,7 +229,7 @@ def test_case_tables(explorer: Explorer):
             print(
                 "'NOT perfect' table case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 tagname_count,
                 realizations,
@@ -254,7 +254,7 @@ def test_case_polygons(explorer: Explorer):
     perfect_cases = 0
     for case in cases:
         realizations = len(case.realizations)
-        iter_count = 0
+        ens_count = 0
         real_count = 0
         tagname_count = 0
         for poly in case.polygons:
@@ -262,21 +262,21 @@ def test_case_polygons(explorer: Explorer):
             assert poly.name
             if poly.metadata.get("fmu").get("aggregation") is not None:
                 continue
-            if poly.iteration is not None:
-                iter_count += 1
+            if poly.ensemble is not None:
+                ens_count += 1
             if poly.realization is not None:
                 real_count += 1
             if poly.tagname is not None:
                 tagname_count += 1
         if (
-            iter_count >= 6 * realizations
+            ens_count >= 6 * realizations
             and real_count >= 6 * realizations
             and tagname_count >= 6 * realizations
         ):
             print(
                 "'Perfect' polygon case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 tagname_count,
                 realizations,
@@ -286,7 +286,7 @@ def test_case_polygons(explorer: Explorer):
             print(
                 "'NOT perfect' polygon case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 tagname_count,
                 realizations,
@@ -310,7 +310,7 @@ def test_case_dictionaries(explorer: Explorer):
     perfect_cases = 0
     for case in cases:
         realizations = len(case.realizations)
-        iter_count = 0
+        ens_count = 0
         real_count = 0
         tagname_count = 0
         name_parameter_found = False
@@ -319,8 +319,8 @@ def test_case_dictionaries(explorer: Explorer):
             assert dct.name
             if dct.metadata.get("fmu").get("aggregation") is not None:
                 continue
-            if dct.iteration is not None:
-                iter_count += 1
+            if dct.ensemble is not None:
+                ens_count += 1
             if dct.realization is not None:
                 real_count += 1
             if dct.tagname is not None:
@@ -328,7 +328,7 @@ def test_case_dictionaries(explorer: Explorer):
             if dct.name == "parameters":
                 name_parameter_found = True
         if (
-            iter_count >= 1 * realizations
+            ens_count >= 1 * realizations
             and real_count >= 1 * realizations
             and tagname_count >= 1 * realizations
             and name_parameter_found
@@ -336,7 +336,7 @@ def test_case_dictionaries(explorer: Explorer):
             print(
                 "'Perfect' dictionary case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 tagname_count,
                 name_parameter_found,
@@ -347,7 +347,7 @@ def test_case_dictionaries(explorer: Explorer):
             print(
                 "'NOT perfect' dicationary case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 tagname_count,
                 name_parameter_found,
@@ -377,7 +377,7 @@ def test_case_seismic(explorer: Explorer):
     perfect_cases = 0
     for case in cases:
         realizations = len(case.realizations)
-        iter_count = 0
+        ens_count = 0
         real_count = 0
         for cube in case.cubes:
             assert cube.uuid
@@ -385,15 +385,15 @@ def test_case_seismic(explorer: Explorer):
             assert cube.tagname
             if cube.metadata.get("fmu").get("aggregation") is not None:
                 continue
-            if cube.iteration is not None:
-                iter_count += 1
+            if cube.ensemble is not None:
+                ens_count += 1
             if cube.realization is not None:
                 real_count += 1
-        if iter_count >= 10 * realizations and real_count >= 10 * realizations:
+        if ens_count >= 10 * realizations and real_count >= 10 * realizations:
             print(
                 "'Perfect' seismic case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 realizations,
             )
@@ -402,7 +402,7 @@ def test_case_seismic(explorer: Explorer):
             print(
                 "'NOT perfect' seismic case:",
                 case.uuid,
-                iter_count,
+                ens_count,
                 real_count,
                 realizations,
             )

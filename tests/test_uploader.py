@@ -54,7 +54,7 @@ def fixture_surface_file(monkeypatch):
     """Read global variables and create surface metadata"""
 
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ENSEMBLE_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/")
 
     global_variables_file = "tests/data/global_variables.yml"
@@ -106,7 +106,7 @@ def fixture_segy_file(monkeypatch):
     """Create metadata for seismic.segy"""
 
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ENSEMBLE_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/")
 
     global_variables_file = "tests/data/global_variables.yml"
@@ -133,7 +133,7 @@ def fixture_segy_file(monkeypatch):
 
 
 def _hits_for_case(sumoclient, case_uuid):
-    query = f"fmu.case.uuid:{case_uuid} AND NOT class:iteration AND NOT class:ensemble AND NOT class:realization"
+    query = f"fmu.case.uuid:{case_uuid} AND NOT class:ensemble AND NOT class:realization"
     search_results = sumoclient.get(
         "/search", {"$query": query, "$size": 0}
     ).json()
@@ -331,7 +331,7 @@ def test_case_with_one_child_and_parameters_txt(
 
     monkeypatch.chdir(real_path)
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ENSEMBLE_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./")
 
     e.register()
@@ -341,7 +341,7 @@ def test_case_with_one_child_and_parameters_txt(
     e.upload()
     time.sleep(1)
 
-    query = f"{e.fmu_case_uuid} AND NOT class:iteration AND NOT class:ensemble AND NOT class:realization"
+    query = f"{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
     search_results = sumoclient.get(
         "/search", {"$query": query, "$size": 100}
     ).json()
@@ -698,7 +698,7 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     time.sleep(1)
 
     # Read the parent object from Sumo
-    query = f"_sumo.parent_object:{e.fmu_case_uuid} AND NOT class:iteration AND NOT class:ensemble AND NOT class:realization"
+    query = f"_sumo.parent_object:{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
     search_results = sumoclient.get(
         "/search", {"$query": query, "$size": 100}
     ).json()

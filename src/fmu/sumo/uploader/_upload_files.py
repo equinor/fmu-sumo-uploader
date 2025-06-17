@@ -74,19 +74,18 @@ def get_parameter_file(parameters_path, config_path):
     return paramfile
 
 
-def maybe_upload_realization_and_ensemble_and_iteration(
+def maybe_upload_realization_and_ensemble(
     sumoclient, base_metadata
 ):
     realization_uuid = base_metadata["fmu"]["realization"]["uuid"]
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
-    iteration_uuid = base_metadata["fmu"]["iteration"]["uuid"]
 
     hits = sumoclient.post(
         "/search",
         json={
             "query": {
                 "ids": {
-                    "values": [realization_uuid, ensemble_uuid, iteration_uuid]
+                    "values": [realization_uuid, ensemble_uuid]
                 }
             },
             "_source": ["class"],
@@ -105,15 +104,6 @@ def maybe_upload_realization_and_ensemble_and_iteration(
         realization_metadata["fmu"]["context"]["stage"] = "realization"
 
         case_uuid = realization_metadata["fmu"]["case"]["uuid"]
-
-        if "iteration" not in classes:
-            iteration_metadata = deepcopy(realization_metadata)
-            del iteration_metadata["fmu"]["realization"]
-            iteration_metadata["class"] = "iteration"
-            iteration_metadata["fmu"]["context"]["stage"] = "iteration"
-            sumoclient.post(
-                f"/objects('{case_uuid}')", json=iteration_metadata
-            )
 
         if "ensemble" not in classes:
             ensemble_metadata = deepcopy(realization_metadata)
@@ -135,7 +125,7 @@ def _upload_files(
     parameters_path="parameters.txt",
 ):
     """
-    Upload realization, ensemble and iteration objects if they do not exist
+    Upload realization and ensemble objects if they do not exist
     Upload parameters file if it does not exist or it has changed
     Create threads and call _upload in each thread
     """
@@ -145,12 +135,12 @@ def _upload_files(
             realization_id = file.metadata["fmu"]["realization"]["uuid"]
 
             try:
-                maybe_upload_realization_and_ensemble_and_iteration(
+                maybe_upload_realization_and_ensemble(
                     sumoclient, file.metadata
                 )
             except Exception as e:
                 logger.error(
-                    "Failed to upload realization, ensemble and iteration objects: %s",
+                    "Failed to upload realization and ensemble objects: %s",
                     e.with_traceback(None),
                 )
 
