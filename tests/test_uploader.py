@@ -54,7 +54,7 @@ def fixture_surface_file(monkeypatch):
     """Read global variables and create surface metadata"""
 
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_ENSEMBLE_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/")
 
     global_variables_file = "tests/data/global_variables.yml"
@@ -106,7 +106,7 @@ def fixture_segy_file(monkeypatch):
     """Create metadata for seismic.segy"""
 
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_ENSEMBLE_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/")
 
     global_variables_file = "tests/data/global_variables.yml"
@@ -331,7 +331,7 @@ def test_case_with_one_child_and_parameters_txt(
 
     monkeypatch.chdir(real_path)
     monkeypatch.setenv("_ERT_REALIZATION_NUMBER", "0")
-    monkeypatch.setenv("_ERT_ENSEMBLE_NUMBER", "0")
+    monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./")
 
     e.register()
