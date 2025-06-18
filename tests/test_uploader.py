@@ -112,7 +112,7 @@ def fixture_segy_file(monkeypatch):
         name="seismic",
         content="seismic",
         content_metadata={"attribute": "owc", "is_discrete": False},
-        casepath="tests/data/",
+        casepath=Path.cwd() / "tests/data/",
     )
 
     segy_file = xtgeo.cube_from_file("tests/data/seismic.segy", fformat="segy")
