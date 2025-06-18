@@ -33,12 +33,12 @@ logger.setLevel(level="DEBUG")
 def fixture_case_metadata():
     """Read global variables and create case metadata"""
 
-    global_variables_file = "tests/data/global_variables.yml"
+    global_variables_file = "./tests/data/global_variables.yml"
     with open(global_variables_file) as f:
         global_vars = yaml.safe_load(f)
     case_metadata_file = CreateCaseMetadata(
         config=global_vars,
-        rootfolder="tests/data/",
+        rootfolder="./tests/data/",
         casename="TestCase from fmu.sumo",
     ).export()
 
@@ -56,7 +56,7 @@ def fixture_surface_file(monkeypatch):
     monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/")
 
-    global_variables_file = "tests/data/global_variables.yml"
+    global_variables_file = "./tests/data/global_variables.yml"
     with open(global_variables_file) as f:
         global_vars = yaml.safe_load(f)
     ed = ExportData(
@@ -66,11 +66,11 @@ def fixture_surface_file(monkeypatch):
         content="depth",
         vertical_domain="depth",
         timedata=None,
-        casepath="tests/data/",
+        casepath="./tests/data/",
     )
 
     surf = xtgeo.surface_from_file(
-        "tests/data/topvolantis--ds_extract_geogrid.gri",
+        "./tests/data/topvolantis--ds_extract_geogrid.gri",
         fformat="irap_binary",
     )
 
@@ -108,7 +108,7 @@ def fixture_segy_file(monkeypatch):
     monkeypatch.setenv("_ERT_ITERATION_NUMBER", "0")
     monkeypatch.setenv("_ERT_RUNPATH", "./tests/data/")
 
-    global_variables_file = "tests/data/global_variables.yml"
+    global_variables_file = "./tests/data/global_variables.yml"
     with open(global_variables_file) as f:
         global_vars = yaml.safe_load(f)
     ed = ExportData(
@@ -116,10 +116,12 @@ def fixture_segy_file(monkeypatch):
         name="seismic",
         content="seismic",
         content_metadata={"attribute": "owc", "is_discrete": False},
-        casepath="tests/data/",
+        casepath="./tests/data/",
     )
 
-    segy_file = xtgeo.cube_from_file("tests/data/seismic.segy", fformat="segy")
+    segy_file = xtgeo.cube_from_file(
+        "./tests/data/seismic.segy", fformat="segy"
+    )
 
     # Export and generate metadata
     file = ed.export(segy_file)
@@ -236,12 +238,12 @@ def test_case_with_restricted_child(
         parsed_yaml = yaml.safe_load(f)
     parsed_yaml["access"]["ssdl"]["access_level"] = "restricted"
     parsed_yaml["access"]["classification"] = "restricted"
-    restricted_metadata_file = "tests/data/.surface_restricted.bin.yml"
+    restricted_metadata_file = "./tests/data/.surface_restricted.bin.yml"
     with open(restricted_metadata_file, "w") as f:
         yaml.dump(parsed_yaml, f)
 
     # Make copy of binary to match the modified metadata file
-    surface_file_copy = "tests/data/surface_restricted.bin"
+    surface_file_copy = "./tests/data/surface_restricted.bin"
     shutil.copy(
         surface_file,
         surface_file_copy,
@@ -271,8 +273,8 @@ def test_case_with_one_child(token, case_metadata, surface_file):
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
-        config_path="tests/data/global_variables.yml",
-        parameters_path="tests/data/parameters.txt",
+        config_path="./tests/data/global_variables.yml",
+        parameters_path="./tests/data/parameters.txt",
     )
     e.register()
     time.sleep(1)
@@ -316,12 +318,12 @@ def test_case_with_one_child_and_parameters_txt(
 
     share_path.mkdir(parents=True)
     fmu_config_folder.mkdir(parents=True)
-    fmu_globals_config = "tests/data/global_variables.yml"
+    fmu_globals_config = "./tests/data/global_variables.yml"
     tmp_binary_file_location = str(share_path / "surface.bin")
     shutil.copy(surface_file, tmp_binary_file_location)
     shutil.copy(fmu_globals_config, config_tmp_path)
     shutil.copy(surface_metadata_file, share_path / ".surface.bin.yml")
-    shutil.copy("tests/data/parameters.txt", real_path / "parameters.txt")
+    shutil.copy("./tests/data/parameters.txt", real_path / "parameters.txt")
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_meta_path,
@@ -383,12 +385,12 @@ def test_case_with_one_child_with_affiliate_access(
     with open(surface_metadata_file) as f:
         parsed_yaml = yaml.safe_load(f)
     parsed_yaml["access"]["affiliate_roles"] = ["DROGON-AFFILIATE"]
-    affiliate_access_metadata_file = "tests/data/.surface_affiliate.bin.yml"
+    affiliate_access_metadata_file = "./tests/data/.surface_affiliate.bin.yml"
     with open(affiliate_access_metadata_file, "w") as f:
         yaml.dump(parsed_yaml, f)
 
     # Make copy of binary to match the modified metadata file
-    surface_file_copy = "tests/data/surface_affiliate.bin"
+    surface_file_copy = "./tests/data/surface_affiliate.bin"
     shutil.copy(
         surface_file,
         surface_file_copy,
@@ -423,7 +425,7 @@ def test_case_with_no_children(token, case_metadata):
     time.sleep(1)
 
     with pytest.warns(UserWarning) as warnings_record:
-        e.add_files("tests/data/NO_SUCH_FILES_EXIST.*")
+        e.add_files("./tests/data/NO_SUCH_FILES_EXIST.*")
         e.upload()
         time.sleep(1)
         for _ in warnings_record:
@@ -458,7 +460,7 @@ def test_missing_child_metadata(token, case_metadata, surface_file):
     e.add_files(surface_file)
 
     # Make a copy of the surface without copying companion metadata
-    surface_file_copy = "tests/data/surface_no_metadata.bin"
+    surface_file_copy = "./tests/data/surface_no_metadata.bin"
     shutil.copy(
         surface_file,
         surface_file_copy,
@@ -497,7 +499,7 @@ def test_invalid_yml_in_case_metadata(token):
     """
     sumoclient = SumoClient(env=ENV, token=token)
 
-    case_file = "tests/data/case_invalid.yml"
+    case_file = "./tests/data/case_invalid.yml"
     with pytest.warns(UserWarning) as warnings_record:
         uploader.CaseOnDisk(
             case_metadata_path=case_file,
@@ -527,13 +529,13 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
     # Add a valid child
     e.add_files(surface_file)
 
-    invalid_metadata_file = "tests/data/.surface_invalid.bin.yml"
+    invalid_metadata_file = "./tests/data/.surface_invalid.bin.yml"
     # Create a metadata file with invalid yml
     with open(invalid_metadata_file, "w") as f:
         yaml.dump("This is invalid yml", f)
 
     # Make copy of binary to match the modified metadata file
-    surface_file_copy = "tests/data/surface_invalid.bin"
+    surface_file_copy = "./tests/data/surface_invalid.bin"
     shutil.copy(
         surface_file,
         surface_file_copy,
@@ -607,12 +609,12 @@ def test_schema_error_in_child(
     del parsed_yaml["fmu"]["realization"]
     parsed_yaml["masterdata_INVALID_SCHEMA"] = parsed_yaml["masterdata"]
     del parsed_yaml["masterdata"]
-    error_metadata_file = "tests/data/.surface_error.bin.yml"
+    error_metadata_file = "./tests/data/.surface_error.bin.yml"
     with open(error_metadata_file, "w") as f:
         yaml.dump(parsed_yaml, f)
 
     # Make copy of binary to match the modified metadata file
-    error_surface_file = "tests/data/surface_error.bin"
+    error_surface_file = "./tests/data/surface_error.bin"
     shutil.copy(
         surface_file,
         error_surface_file,
