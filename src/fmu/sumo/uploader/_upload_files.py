@@ -102,6 +102,7 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
         if "ensemble" not in classes:
             ensemble_metadata = deepcopy(realization_metadata)
             del ensemble_metadata["fmu"]["realization"]
+            del ensemble_metadata["fmu"]["entity"]
             ensemble_metadata["class"] = "ensemble"
             ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
             sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
