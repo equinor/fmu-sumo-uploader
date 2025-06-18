@@ -19,10 +19,6 @@ from fmu.sumo import uploader
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
     import openvds
 
-# Run the tests from the root dir
-TEST_DIR = Path(__file__).parent / "../"
-os.chdir(TEST_DIR)
-
 ENV = "dev"
 
 logger = logging.getLogger(__name__)
@@ -66,7 +62,7 @@ def fixture_surface_file(monkeypatch):
         content="depth",
         vertical_domain="depth",
         timedata=None,
-        casepath="tests/data/",
+        casepath=Path.cwd() / "tests/data/",
     )
 
     surf = xtgeo.surface_from_file(
@@ -272,7 +268,6 @@ def test_case_with_one_child(token, case_metadata, surface_file):
         case_metadata_path=case_metadata,
         sumoclient=sumoclient,
         config_path="tests/data/global_variables.yml",
-        parameters_path="tests/data/parameters.txt",
     )
     e.register()
     time.sleep(1)
