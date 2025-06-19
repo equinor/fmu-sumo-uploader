@@ -8,10 +8,8 @@ import os
 import warnings
 from pathlib import Path
 
-from ert.shared.plugins.plugin_manager import (
-    hook_implementation,  # type: ignore
-)
-from ert.shared.plugins.plugin_response import plugin_response  # type: ignore
+from ert import plugin
+from ert.plugins.plugin_manager import hook_implementation
 
 try:
     from ert import ErtScript  # type: ignore
@@ -290,7 +288,7 @@ def legacy_ertscript_workflow(config):
 
 
 @hook_implementation
-@plugin_response(plugin_name="SUMO_UPLOAD")
+@plugin(plugin_name="SUMO_UPLOAD")
 def job_documentation(job_name):
     if job_name != "SUMO_UPLOAD":
         return None
