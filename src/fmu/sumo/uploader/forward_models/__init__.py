@@ -1,10 +1,15 @@
 import subprocess
 
-from ert import (
+from ert import (  # type: ignore
+    ForwardModelStepDocumentation,
     ForwardModelStepJSON,
     ForwardModelStepPlugin,
     ForwardModelStepValidationError,
+    plugin,
 )
+from ert.plugins.plugin_manager import hook_implementation
+
+from fmu.sumo.uploader.scripts.sumo_upload import DESCRIPTION, EXAMPLES
 
 
 class SumoUpload(ForwardModelStepPlugin):
@@ -53,3 +58,18 @@ class SumoUpload(ForwardModelStepPlugin):
 
         if return_code != 0:
             raise ForwardModelStepValidationError(err_msg)
+
+    @staticmethod
+    def documentation() -> ForwardModelStepDocumentation | None:
+        return ForwardModelStepDocumentation(
+            description=DESCRIPTION,
+            examples=EXAMPLES,
+            category="export",
+            source_package="fmu.sumo.uploader",
+        )
+
+
+@hook_implementation
+@plugin(name="fmu_sumo_uploader")
+def installable_forward_model_steps():
+    return [SumoUpload]

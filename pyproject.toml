@@ -42,7 +42,7 @@ where = ["src"]
 sumo_upload = "fmu.sumo.uploader.scripts.sumo_upload:main"
 
 [project.entry-points.ert]
-fmu_sumo_uploader_jobs = "fmu.sumo.uploader.hook_implementations.jobs"
+fmu_sumo_uploader_jobs = "fmu.sumo.uploader.forward_models"
 sumo_upload = "fmu.sumo.uploader.scripts.sumo_upload"
 
 [tool.ruff]
