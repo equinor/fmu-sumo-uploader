@@ -8,7 +8,6 @@ import os
 import warnings
 from pathlib import Path
 
-from ert import plugin
 from ert.plugins.plugin_manager import hook_implementation
 
 try:
@@ -285,16 +284,3 @@ def legacy_ertscript_workflow(config):
     workflow.description = DESCRIPTION
     workflow.examples = EXAMPLES
     workflow.category = "export"
-
-
-@hook_implementation
-@plugin(plugin_name="SUMO_UPLOAD")
-def job_documentation(job_name):
-    if job_name != "SUMO_UPLOAD":
-        return None
-
-    return {
-        "description": DESCRIPTION,
-        "examples": EXAMPLES,
-        "category": "export",
-    }
