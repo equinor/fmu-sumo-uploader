@@ -16,6 +16,8 @@ from sumo.wrapper import SumoClient
 from fmu.dataio import CreateCaseMetadata, ExportData
 from fmu.sumo import uploader
 
+# fixme: we are now able to build openvds for python3.12 ourselves
+#        find a way to implement that in test runs as well
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
     import openvds
 
@@ -660,6 +662,8 @@ def _get_segy_path(segy_command):
     return path_to_executable
 
 
+# fixme: we are now able to build openvds for python3.12 ourselves
+#        find a way to implement that in test runs as well
 @pytest.mark.skipif(
     sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
     reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
@@ -674,6 +678,8 @@ def test_openvds_available():
     assert "SEGYImport" in check_segy_import_version.stdout
 
 
+# fixme: we are now able to build openvds for python3.12 ourselves
+#        find a way to implement that in test runs as well
 @pytest.mark.skipif(
     sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
     reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
