@@ -12,20 +12,9 @@ permissions:
   id-token: write
 
 jobs:
-  build_openvds:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: equinor/openvds-builder
-      - name: build container
-        run: sh buildit.sh
-
   run_uploader_tests:
     uses: ./.github/workflows/run_uploader_tests.yaml
-    needs: [build_openvds]
   run_tests_on_uploads_from_komodo:
-    needs: [build_openvds]
     uses: ./.github/workflows/run_tests_on_uploads_from_komodo.yaml
   notify_on_failure:
     needs: [run_uploader_tests, run_tests_on_uploads_from_komodo]
