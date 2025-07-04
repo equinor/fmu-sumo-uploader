@@ -8,6 +8,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 
+import httpx
 import yaml
 
 from fmu.dataio._utils import read_parameters_txt
@@ -133,11 +134,21 @@ def _upload_files(
                 maybe_upload_realization_and_ensemble(
                     sumoclient, file.metadata
                 )
-            except Exception as e:
-                logger.error(
-                    "Failed to upload realization and ensemble objects: %s",
-                    e.with_traceback(None),
+            except httpx.HTTPStatusError as err:
+                err = err.with_traceback(None)
+                error_string = (
+                    str(err.response.status_code)
+                    + err.response.reason_phrase
+                    + err.response.text
                 )
+                logger.warning(
+                    f"Metadata upload status error exception: {error_string}"
+                )
+                pass
+            except Exception as err:
+                err = err.with_traceback(None)
+                logger.warning(f"Metadata upload exception {err} {type(err)}")
+                pass
 
             paramfile = get_parameter_file(parameters_path, config_path)
             if paramfile is not None:
