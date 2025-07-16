@@ -21,10 +21,10 @@ Example: Installing the uploader from `mybranch` on top of Komodo bleeding
 < Activate the new env >
 
 pip install git+https://github.com/equinor/fmu-sumo-uploader.git@mybranch
-pip install git+https://github.com/equinor/fmu-sumo-sim2sumo.git
+pip install git+https://github.com/equinor/fmu-sumo-sim2sumo.git --force-reinstall
 ```
 
 The [Explorer](https://github.com/equinor/fmu-sumo) is also installed under `fmu/sumo`. Meaning that if the testing scenario includes the Explorer then it should also be installed on top of Komodo.
 ```
-pip install git+https://github.com/equinor/fmu-sumo.git
+pip install git+https://github.com/equinor/fmu-sumo.git --force-reinstall
 ```
