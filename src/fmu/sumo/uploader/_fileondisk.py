@@ -51,7 +51,7 @@ class FileOnDisk(SumoFile):
         self.metadata_path = (
             metadata_path if metadata_path else _path_to_yaml_path(path)
         )
-        self.path = os.path.abspath(path)
+        self.path = path
         self.metadata = parse_yaml(self.metadata_path)
 
         self._size = os.path.getsize(self.path)
