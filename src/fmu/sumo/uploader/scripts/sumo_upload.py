@@ -53,19 +53,17 @@ and normally set to ``prod``.
 and normally set to ``<SCRATCH>/<USER>/<CASE_DIR>``
 e.g. ``/scratch/myfield/myuser/mycase/``
 
-Note! Filenames produced by FMU workflows use "--" as separator. Avoid this
-string in searchpaths, as it will cause following text to be parsed as a comment.
+Note! Filenames produced by FMU workflows use "--" as separator.
 
 FORWARD_MODEL example::
 
   FORWARD_MODEL XX -- Some other job that makes data
-  FORWARD_MODEL SUMO_UPLOAD(<SEARCHPATH>="share/results/maps/*.gri")
-  FORWARD_MODEL SUMO_UPLOAD(<SEARCHPATH>="share/results/polygons/*.csv")
+  FORWARD_MODEL SUMO_UPLOAD
 
 WORKFLOW_JOB example::
 
   <MY_JOB> -- The workflow job that creates data
-  SUMO_UPLOAD <SUMO_CASEPATH> "<SUMO_CASEPATH>/share/observations/maps/*.gri"  <SUMO_ENV>
+  SUMO_UPLOAD <SUMO_CASEPATH> <SUMO_ENV>
 
 """
 

@@ -38,7 +38,7 @@ class CaseOnDisk(SumoCase):
 
         >>> env = 'dev'
         >>> case_metadata_path = 'path/to/case_metadata.yaml'
-        >>> search_path = 'path/to/search_path/'
+        >>> case_path = 'path/to/case_path/'
 
         >>> sumoclient = sumo.wrapper.SumoClient(env=env)
         >>> case = sumo.CaseOnDisk(
@@ -47,7 +47,7 @@ class CaseOnDisk(SumoCase):
 
         After initialization, files must be explicitly indexed into the CaseOnDisk object:
 
-        >>> case.add_files(search_path)
+        >>> case.add_files(case_path)
 
         When initialized, the case can be uploaded to Sumo:
 
