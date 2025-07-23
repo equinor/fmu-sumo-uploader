@@ -8,9 +8,12 @@ import datetime
 import statistics
 import time
 import warnings
+import json
+import os
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
+from fmu.dataio.manifest import get_manifest_path
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -21,6 +24,7 @@ class SumoCase:
     def __init__(
         self,
         case_metadata: str,
+        casepath,
         sumoclient,
         verbosity="WARNING",
         sumo_mode="copy",
@@ -30,6 +34,7 @@ class SumoCase:
         logger.setLevel(verbosity)
         self.sumoclient = sumoclient
         self.case_metadata = _sanitize_datetimes(case_metadata)
+        self.casepath = casepath
         self._fmu_case_uuid = self._get_fmu_case_uuid()
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
@@ -63,6 +68,32 @@ class SumoCase:
             err_msg = f"Invalid metadata: Could not get fmu.case.uuid from case metadata: {err} {type(err)}"
             warnings.warn(err_msg)
             return None
+    
+    def _load_export_manifest(self):
+        """Load export manifest from file."""
+
+        manifest_path = get_manifest_path(self.casepath)
+        logger.info(f"Loading export manifest from {manifest_path}")
+
+        if not os.path.exists(manifest_path):
+            raise FileNotFoundError(
+                f"Export manifest file not found at {manifest_path}"
+            )
+
+        with open(manifest_path, "r", encoding="utf-8") as file:
+            return json.load(file)
+
+    def _load_sumo_uploads(self):
+        """Load sumo uploads log from file."""
+
+        uploads_path = get_manifest_path(self.casepath).parent / ".sumo_uploads.json"
+
+        if not os.path.exists(uploads_path):
+            return []
+
+        with open(uploads_path, "r", encoding="utf-8") as uploads_json:
+            return json.load(uploads_json)
+    
 
     def upload(self, threads=4):
         """Trigger upload of files.
@@ -73,7 +104,7 @@ class SumoCase:
         Retry the failed uploads X times."""
 
         if not self.files:
-            err_msg = "No files to upload. Check search string."
+            err_msg = "No files to upload."
             logger.warning(err_msg)
             return {}
 
@@ -123,6 +154,7 @@ class SumoCase:
         if len(ok_uploads) > 0:
             upload_statistics = _calculate_upload_stats(ok_uploads)
             logger.info(upload_statistics)
+            self._update_sumo_uploads()
 
         if rejected_uploads:
             logger.info(
@@ -195,6 +227,23 @@ class SumoCase:
         return ok_uploads
 
     pass
+
+    def _update_sumo_uploads(self):
+        """Update sumo uploads log."""
+
+        manifest = self._load_export_manifest()
+        uploads_path = get_manifest_path(self.casepath).parent / ".sumo_uploads.json"
+        sumo_uploads = self._load_sumo_uploads()
+        new_entry = {
+            "last_index_manifest": len(manifest) - 1,
+            "timestamp": manifest[-1]["exported_at"],
+        }
+        sumo_uploads.append(new_entry)
+
+        with open(uploads_path, "w") as file:
+            json.dump(sumo_uploads, file, indent=4)
+
+        logger.info(f"Sumo log {uploads_path} updated with new entry: {new_entry}")
 
 
 def _get_log_msg(sumo_parent_id, status):

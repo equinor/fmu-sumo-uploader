@@ -38,16 +38,17 @@ class CaseOnDisk(SumoCase):
 
         >>> env = 'dev'
         >>> case_metadata_path = 'path/to/case_metadata.yaml'
-        >>> case_path = 'path/to/case_path/'
+        >>> casepath = 'path/to/casepath/'
 
         >>> sumoclient = sumo.wrapper.SumoClient(env=env)
         >>> case = sumo.CaseOnDisk(
                 case_metadata_path=case_metadata_path,
+                casepath=casepath,
                 sumoclient=sumoclient)
 
         After initialization, files must be explicitly indexed into the CaseOnDisk object:
 
-        >>> case.add_files(case_path)
+        >>> case.add_files()
 
         When initialized, the case can be uploaded to Sumo:
 
@@ -55,6 +56,7 @@ class CaseOnDisk(SumoCase):
 
     Args:
         case_metadata_path (str): Path to the case_metadata file for the case
+        casepath (str): Path to the case
         sumoclient (sumo.wrapper.SumoClient): SumoConnection object
 
 
@@ -63,6 +65,7 @@ class CaseOnDisk(SumoCase):
     def __init__(
         self,
         case_metadata_path: str,
+        casepath,
         sumoclient,
         verbosity=logging.WARNING,
         sumo_mode="copy",
@@ -85,6 +88,7 @@ class CaseOnDisk(SumoCase):
         case_metadata = _load_case_metadata(case_metadata_path)
         super().__init__(
             case_metadata,
+            casepath,
             sumoclient,
             verbosity,
             sumo_mode,
@@ -130,10 +134,10 @@ class CaseOnDisk(SumoCase):
         """Return the files"""
         return self._files
 
-    def add_files(self, casepath):
+    def add_files(self):
         """Add files to the case, based on dataio export manifest file"""
 
-        file_paths = _find_file_paths(casepath)
+        file_paths = self._find_file_paths()
 
         for file_path in file_paths:
             try:
@@ -210,22 +214,43 @@ class CaseOnDisk(SumoCase):
 
         return returned_object_id
 
-    def update_sumo_uploads(self, casepath):
-        """Update sumo uploads log."""
+    def _find_file_paths(self):
+        """Find files and return as list of FileOnDisk instances."""
 
-        manifest = _load_export_manifest(casepath)
-        uploads_path = _get_sumo_uploads_path(casepath)
-        sumo_uploads = _load_sumo_uploads(casepath)
-        new_entry = {
-            "last_index_manifest": len(manifest)-1,
-            "timestamp": manifest[-1]["exported_at"],
-        }
-        sumo_uploads.append(new_entry)
+        manifest = self._load_export_manifest()
+        sumo_uploads = self._load_sumo_uploads()
+        next_index = self._get_next_index(manifest, sumo_uploads)
 
-        with open(uploads_path, "w") as file:
-            json.dump(sumo_uploads, file, indent=4)
+        logger.info(f"Finding files to upload.")
+        if next_index > len(manifest) - 1:
+            files = []
+        else:
+            logger.info(f"Upload will start from index {next_index} in manifest.")
+            files = [f["absolute_path"] for f in manifest[next_index:] if os.path.isfile(f["absolute_path"])]
 
-        logger.info(f"Sumo log {uploads_path} updated.")
+        if len(files) == 0:
+            warnings.warn("No files found!")
+
+        return files
+
+    def _get_next_index(self, manifest, sumo_uploads):
+        "Determine the start uploading index in manifest"
+
+        if not sumo_uploads or not manifest:
+            return 0
+
+        last_uploaded_index = sumo_uploads[-1]["last_index_manifest"]
+        ts_uploads = sumo_uploads[-1]["timestamp"]
+
+        try:
+            if manifest[last_uploaded_index]["exported_at"] == ts_uploads:
+                return last_uploaded_index + 1
+        except KeyError as e:
+            logger.debug(f"KeyError while accessing manifest: {e}")
+        except IndexError as e:
+            logger.debug(f"IndexError while accessing manifest: {e}")
+
+        return 0
 
 
 def _load_case_metadata(case_metadata_path: str):
@@ -244,76 +269,3 @@ def _load_case_metadata(case_metadata_path: str):
     except Exception:
         warnings.warn(f"Invalid metadata in yml file {case_metadata_path}")
         return {}
-
-
-def _find_file_paths(casepath):
-    """Find files and return as list of FileOnDisk instances."""
-
-    manifest = _load_export_manifest(casepath)
-    sumo_uploads = _load_sumo_uploads(casepath)
-    next_index = _get_next_index(manifest, sumo_uploads)
-
-    logger.info(f"Finding files to upload.")
-    if next_index == len(manifest):
-        files = []
-    else:
-        logger.info(f"Upload will start from index {next_index} in manifest.")
-        files = [f["absolute_path"] for f in manifest[next_index:]]
-
-    if len(files) == 0:
-        warnings.warn("No files found!")
-
-    return files
-
-
-def _load_export_manifest(casepath):
-    """Load export manifest from file."""
-
-    manifest_path = get_manifest_path(casepath)
-    logger.info(f"Loading export manifest from {manifest_path}")
-
-    if not os.path.exists(manifest_path):
-        raise FileNotFoundError(
-            f"Export manifest file not found at {manifest_path}"
-        )
-
-    with open(manifest_path, "r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def _get_sumo_uploads_path(casepath):
-    """Determine sumo uploads log filepath based on manifest path."""
-
-    return get_manifest_path(casepath).parent / ".sumo_uploads.json"
-
-
-def _load_sumo_uploads(casepath):
-    """Load sumo uploads log from file."""
-
-    uploads_path = _get_sumo_uploads_path(casepath)
-
-    if not os.path.exists(uploads_path):
-        return []
-
-    with open(uploads_path, "r", encoding="utf-8") as uploads_json:
-        return json.load(uploads_json)
-
-
-def _get_next_index(manifest, sumo_uploads):
-    "Determine the start uploading index in manifest"
-
-    if not sumo_uploads or not manifest:
-        return 0
-
-    last_uploaded_index = sumo_uploads[-1]["last_index_manifest"]
-    ts_uploads = sumo_uploads[-1]["timestamp"]
-
-    try:
-        if manifest[last_uploaded_index]["exported_at"] == ts_uploads:
-            return last_uploaded_index + 1
-    except KeyError as e:
-        logger.debug(f"KeyError while accessing manifest: {e}")
-    except IndexError as e:
-        logger.debug(f"IndexError while accessing manifest: {e}")
-
-    return 0

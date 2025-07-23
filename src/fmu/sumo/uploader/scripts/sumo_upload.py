@@ -132,6 +132,7 @@ def sumo_upload_main(
 
         e = uploader.CaseOnDisk(
             case_metadata_path,
+            casepath,
             sumoclient,
             verbosity,
             sumo_mode,
@@ -139,7 +140,7 @@ def sumo_upload_main(
             parameters_path,
         )
         # add files to the case on disk object
-        e.add_files(casepath)
+        e.add_files()
         logger.info("%s files has been added", str(len(e.files)))
 
         if len(e.files) == 0:
@@ -151,7 +152,6 @@ def sumo_upload_main(
         logger.info("Starting upload")
         e.upload(threads=threads)
         logger.info("Upload done")
-        e.update_sumo_uploads(casepath)
 
     except Exception as err:
         err = err.with_traceback(None)
