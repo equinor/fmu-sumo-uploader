@@ -132,12 +132,12 @@ def sumo_upload_main(
 
         e = uploader.CaseOnDisk(
             case_metadata_path,
-            casepath,
             sumoclient,
             verbosity,
             sumo_mode,
             config_path,
             parameters_path,
+            casepath,
         )
         # add files to the case on disk object
         e.add_files()

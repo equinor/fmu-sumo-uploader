@@ -24,12 +24,12 @@ class SumoCase:
     def __init__(
         self,
         case_metadata: str,
-        casepath,
         sumoclient,
         verbosity="WARNING",
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
+        casepath="path/to/casepath",
     ):
         logger.setLevel(verbosity)
         self.sumoclient = sumoclient

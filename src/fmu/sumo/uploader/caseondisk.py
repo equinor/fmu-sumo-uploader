@@ -62,12 +62,12 @@ class CaseOnDisk(SumoCase):
     def __init__(
         self,
         case_metadata_path: str,
-        casepath,
         sumoclient,
         verbosity=logging.WARNING,
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
+        casepath="path/to/casepath",
     ):
         """Initialize CaseOnDisk.
 
@@ -85,12 +85,12 @@ class CaseOnDisk(SumoCase):
         case_metadata = _load_case_metadata(case_metadata_path)
         super().__init__(
             case_metadata,
-            casepath,
             sumoclient,
             verbosity,
             sumo_mode,
             config_path,
             parameters_path,
+            casepath,
         )
 
         self._sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
