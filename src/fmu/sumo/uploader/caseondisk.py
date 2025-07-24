@@ -1,6 +1,5 @@
 """Objectify an FMU case (results) as it appears on the disk."""
 
-import glob
 import logging
 import os
 import time
@@ -9,12 +8,10 @@ from pathlib import Path
 
 import httpx
 import yaml
-import json
 
 from fmu.sumo.uploader._fileondisk import FileOnDisk
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumocase import SumoCase
-from fmu.dataio.manifest import get_manifest_path
 
 logger = get_uploader_logger()
 
@@ -221,7 +218,7 @@ class CaseOnDisk(SumoCase):
         sumo_uploads = self._load_sumo_uploads()
         next_index = self._get_next_index(manifest, sumo_uploads)
 
-        logger.info(f"Finding files to upload.")
+        logger.info("Finding files to upload.")
         if next_index > len(manifest) - 1:
             files = []
         else:

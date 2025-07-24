@@ -5,15 +5,15 @@ Base class for CaseOnJob and CaseOnDisk classes.
 """
 
 import datetime
+import json
+import os
 import statistics
 import time
 import warnings
-import json
-import os
 
+from fmu.dataio.manifest import get_manifest_path
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
-from fmu.dataio.manifest import get_manifest_path
 
 # pylint: disable=C0103 # allow non-snake case variable names
 

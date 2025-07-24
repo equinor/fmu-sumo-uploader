@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import json
 import logging
 import os
@@ -7,7 +8,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-import datetime
 
 import pytest
 import xtgeo
@@ -15,8 +15,8 @@ import yaml
 from sumo.wrapper import SumoClient
 
 from fmu.dataio import CreateCaseMetadata, ExportData
-from fmu.sumo import uploader
 from fmu.dataio.manifest import get_manifest_path
+from fmu.sumo import uploader
 
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
     import openvds
@@ -182,7 +182,7 @@ def test_manifest(token, case_metadata, surface_file, manifest_file):
     """Assert that manifest exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
 
-    case = uploader.CaseOnDisk(
+    uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
         casepath=CASEPATH,
         sumoclient=sumoclient,
