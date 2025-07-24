@@ -222,8 +222,14 @@ class CaseOnDisk(SumoCase):
         if next_index > len(manifest) - 1:
             files = []
         else:
-            logger.info(f"Upload will start from index {next_index} in manifest.")
-            files = [f["absolute_path"] for f in manifest[next_index:] if os.path.isfile(f["absolute_path"])]
+            logger.info(
+                f"Upload will start from index {next_index} in manifest."
+            )
+            files = [
+                f["absolute_path"]
+                for f in manifest[next_index:]
+                if os.path.isfile(f["absolute_path"])
+            ]
 
         if len(files) == 0:
             warnings.warn("No files found!")

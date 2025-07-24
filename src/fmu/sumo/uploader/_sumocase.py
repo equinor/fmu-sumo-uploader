@@ -68,7 +68,7 @@ class SumoCase:
             err_msg = f"Invalid metadata: Could not get fmu.case.uuid from case metadata: {err} {type(err)}"
             warnings.warn(err_msg)
             return None
-    
+
     def _load_export_manifest(self):
         """Load export manifest from file."""
 
@@ -86,14 +86,15 @@ class SumoCase:
     def _load_sumo_uploads(self):
         """Load sumo uploads log from file."""
 
-        uploads_path = get_manifest_path(self.casepath).parent / ".sumo_uploads.json"
+        uploads_path = (
+            get_manifest_path(self.casepath).parent / ".sumo_uploads.json"
+        )
 
         if not os.path.exists(uploads_path):
             return []
 
         with open(uploads_path, "r", encoding="utf-8") as uploads_json:
             return json.load(uploads_json)
-    
 
     def upload(self, threads=4):
         """Trigger upload of files.
@@ -232,7 +233,9 @@ class SumoCase:
         """Update sumo uploads log."""
 
         manifest = self._load_export_manifest()
-        uploads_path = get_manifest_path(self.casepath).parent / ".sumo_uploads.json"
+        uploads_path = (
+            get_manifest_path(self.casepath).parent / ".sumo_uploads.json"
+        )
         sumo_uploads = self._load_sumo_uploads()
         new_entry = {
             "last_index_manifest": len(manifest) - 1,
@@ -243,7 +246,9 @@ class SumoCase:
         with open(uploads_path, "w") as file:
             json.dump(sumo_uploads, file, indent=4)
 
-        logger.info(f"Sumo log {uploads_path} updated with new entry: {new_entry}")
+        logger.info(
+            f"Sumo log {uploads_path} updated with new entry: {new_entry}"
+        )
 
 
 def _get_log_msg(sumo_parent_id, status):
