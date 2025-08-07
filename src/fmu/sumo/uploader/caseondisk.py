@@ -253,6 +253,7 @@ class CaseOnDisk(SumoCase):
         except IndexError as e:
             logger.debug(f"IndexError while accessing manifest: {e}")
 
+        # When the manifest and sumo uploads log has a mismatch, like manifest is overwritten, reupload from index 0.
         return 0
 
 

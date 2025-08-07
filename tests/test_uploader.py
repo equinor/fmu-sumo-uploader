@@ -882,6 +882,59 @@ def test_schema_error_in_child(
     os.remove(error_metadata_file)
 
 
+def test_corrupted_export_manifest(token, case_metadata):
+    """
+    Test sumo uploads behavor when export manifest is corrupted.
+    """
+    sumoclient = SumoClient(env=ENV, token=token)
+
+    e = uploader.CaseOnDisk(
+        case_metadata_path=case_metadata,
+        casepath=CASEPATH,
+        sumoclient=sumoclient,
+    )
+
+    manifest = [
+        {
+            "absolute_path": "/path/to/file1",
+            "exported_at": "2024-01-01T00:00:00Z",
+            "exported_by": "TEST",
+        },
+        {
+            "absolute_path": "/path/to/file2",
+            "exported_at": "2025-01-01T00:00:00Z",
+            "exported_by": "TEST",
+        },
+    ]
+
+    sumo_uploads = [
+        {
+            "last_index_manifest": 0,
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
+    ]
+
+    sumo_uploads_corrupted_index = [
+        {
+            "last_index_manifest": 1,
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
+    ]
+
+    sumo_uploads_corrupted_timestamp = [
+        {
+            "last_index_manifest": 0,
+            "timestamp": "2020-01-01T00:00:00Z",
+        }
+    ]
+
+    # assert that the next index is 1.
+    assert e._get_next_index(manifest, sumo_uploads) == 1
+    # assert the next index is 0.
+    assert e._get_next_index(manifest, sumo_uploads_corrupted_index) == 0
+    assert e._get_next_index(manifest, sumo_uploads_corrupted_timestamp) == 0
+
+
 def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     token,
     case_metadata,
