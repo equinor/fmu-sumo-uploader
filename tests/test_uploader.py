@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import json
 import logging
 import os
@@ -14,12 +15,14 @@ import yaml
 from sumo.wrapper import SumoClient
 
 from fmu.dataio import CreateCaseMetadata, ExportData
+from fmu.dataio.manifest import get_manifest_path
 from fmu.sumo import uploader
 
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
     import openvds
 
 ENV = "dev"
+CASEPATH = Path.cwd() / "tests/data/"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level="DEBUG")
@@ -96,6 +99,32 @@ def fixture_surface_metadata_file(surface_file):
         os.remove(file)
 
 
+@pytest.fixture(name="manifest_file")
+def fixture_manifest_file():
+    """Get path to the export manifest file"""
+
+    file = get_manifest_path(CASEPATH)
+
+    yield file
+
+    # Delete the manifest when test is done
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(file)
+
+
+@pytest.fixture(name="sumo_uploads_file")
+def fixture_sumo_uploads_file(manifest_file):
+    """Get path to the sumo uploads file"""
+
+    file = manifest_file.parent / ".sumo_uploads.json"
+
+    yield file
+
+    # Delete the sumo uploads log when test is done
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(file)
+
+
 @pytest.fixture(name="segy_file")
 def fixture_segy_file(monkeypatch):
     """Create metadata for seismic.segy"""
@@ -144,23 +173,89 @@ def test_initialization(token, case_metadata):
 
     uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
 
 
-def test_upload_without_registration(token, case_metadata, surface_file):
+def test_manifest(token, case_metadata, surface_file, manifest_file):
+    """Assert that manifest exists after exporting data"""
+    sumoclient = SumoClient(env=ENV, token=token)
+
+    uploader.CaseOnDisk(
+        case_metadata_path=case_metadata,
+        casepath=CASEPATH,
+        sumoclient=sumoclient,
+        verbosity="DEBUG",
+    )
+
+    # Assert that manifest is there.
+    assert os.path.exists(manifest_file)
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+
+    assert len(manifest) == 1
+
+
+def test_sumo_uploads(
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+):
+    """Assert that sumo uploads log exists after exporting data"""
+    sumoclient = SumoClient(env=ENV, token=token)
+
+    case = uploader.CaseOnDisk(
+        case_metadata_path=case_metadata,
+        casepath=CASEPATH,
+        sumoclient=sumoclient,
+        verbosity="DEBUG",
+    )
+
+    # Assert that manifest is there, and assert that sumo uploads log is not there.
+    assert os.path.exists(manifest_file)
+    assert not os.path.exists(sumo_uploads_file)
+
+    case.register()
+    case.add_files()
+    assert len(case.files) == 1
+
+    case.upload()
+
+    # Assert that sumo uploads log is there.
+    assert os.path.exists(sumo_uploads_file)
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+
+    with open(sumo_uploads_file, "r") as f:
+        sumo_uploads = json.load(f)
+
+    assert len(sumo_uploads) == 1
+    assert sumo_uploads[-1]["last_index_manifest"] == len(manifest) - 1
+
+
+def test_upload_without_registration(
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
     sumoclient = SumoClient(env=ENV, token=token)
 
     case = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
         verbosity="DEBUG",
     )
 
-    case.add_files(surface_file)
+    assert os.path.exists(surface_file)
+    assert os.path.exists(manifest_file)
+
+    case.add_files()
     with pytest.warns(UserWarning, match="Case is not registered"):
         case.upload(threads=1)
+
+    # Assert if sumo uploads log is not there.
+    assert not os.path.exists(sumo_uploads_file)
 
 
 def test_validate_schema(token, case_metadata):
@@ -178,6 +273,7 @@ def test_case(token, case_metadata):
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
 
@@ -212,7 +308,12 @@ def test_case(token, case_metadata):
 
 
 def test_case_with_restricted_child(
-    token, case_metadata, surface_file, surface_metadata_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """Assert that uploading a child with 'classification: restricted' works.
     Assumes that the identity running this test have enough rights for that."""
@@ -220,6 +321,7 @@ def test_case_with_restricted_child(
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
 
@@ -232,18 +334,39 @@ def test_case_with_restricted_child(
         parsed_yaml = yaml.safe_load(f)
     parsed_yaml["access"]["ssdl"]["access_level"] = "restricted"
     parsed_yaml["access"]["classification"] = "restricted"
-    restricted_metadata_file = "tests/data/.surface_restricted.bin.yml"
+
+    basename = os.path.dirname(surface_file)
+    restricted_metadata_file = os.path.join(
+        basename, ".surface_restricted.bin.yml"
+    )
     with open(restricted_metadata_file, "w") as f:
         yaml.dump(parsed_yaml, f)
 
     # Make copy of binary to match the modified metadata file
-    surface_file_copy = "tests/data/surface_restricted.bin"
+    surface_file_copy = os.path.join(basename, "surface_restricted.bin")
     shutil.copy(
         surface_file,
         surface_file_copy,
     )
 
-    e.add_files(surface_file_copy)
+    # Make new export manifest with entry for restricted file
+    new_entry = {
+        "absolute_path": surface_file_copy,
+        "exported_at": datetime.datetime.now(datetime.UTC)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "exported_by": "TEST",
+    }
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+        manifest.append(new_entry)
+
+    os.remove(manifest_file)
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
+
+    e.add_files()
     e.upload()
     time.sleep(1)
 
@@ -259,25 +382,31 @@ def test_case_with_restricted_child(
     os.remove(restricted_metadata_file)
 
 
-def test_case_with_one_child(token, case_metadata, surface_file):
+def test_case_with_one_child(
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+):
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
         config_path="tests/data/global_variables.yml",
     )
     e.register()
     time.sleep(1)
 
-    e.add_files(surface_file)
+    assert os.path.exists(surface_file)
+    assert os.path.exists(manifest_file)
+    e.add_files()
     e.upload()
     time.sleep(1)
 
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
     assert total == 2
+    assert os.path.exists(sumo_uploads_file)
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
@@ -292,6 +421,8 @@ def test_case_with_one_child_and_parameters_txt(
     monkeypatch,
     surface_file,
     surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """Upload one file to Sumo. Assert that it is there."""
 
@@ -317,9 +448,14 @@ def test_case_with_one_child_and_parameters_txt(
     shutil.copy(fmu_globals_config, config_tmp_path)
     shutil.copy(surface_metadata_file, share_path / ".surface.bin.yml")
     shutil.copy("tests/data/parameters.txt", real_path / "parameters.txt")
+    shutil.copy(
+        manifest_file,
+        real_path / ".dataio_export_manifest.json",
+    )
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_meta_path,
+        casepath=case_path,
         sumoclient=sumoclient,
     )
 
@@ -331,9 +467,13 @@ def test_case_with_one_child_and_parameters_txt(
     e.register()
     time.sleep(1)
 
-    e.add_files(tmp_binary_file_location)
+    e.add_files()
     e.upload()
     time.sleep(1)
+
+    ert_run_sumo_uploads_file = real_path / ".sumo_uploads.json"
+    assert not os.path.exists(sumo_uploads_file)
+    assert os.path.exists(ert_run_sumo_uploads_file)
 
     query = (
         f"{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
@@ -362,7 +502,12 @@ def test_case_with_one_child_and_parameters_txt(
 
 
 def test_case_with_one_child_with_affiliate_access(
-    token, case_metadata, surface_file, surface_metadata_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """Upload one file to Sumo with affiliate access.
     Assert that it is there."""
@@ -371,6 +516,7 @@ def test_case_with_one_child_with_affiliate_access(
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
@@ -380,18 +526,39 @@ def test_case_with_one_child_with_affiliate_access(
     with open(surface_metadata_file) as f:
         parsed_yaml = yaml.safe_load(f)
     parsed_yaml["access"]["affiliate_roles"] = ["DROGON-AFFILIATE"]
-    affiliate_access_metadata_file = "tests/data/.surface_affiliate.bin.yml"
+    affiliate_access_metadata_file = os.path.join(
+        os.path.dirname(surface_file), ".surface_affiliate.bin.yml"
+    )
     with open(affiliate_access_metadata_file, "w") as f:
         yaml.dump(parsed_yaml, f)
 
     # Make copy of binary to match the modified metadata file
-    surface_file_copy = "tests/data/surface_affiliate.bin"
+    surface_file_copy = os.path.join(
+        os.path.dirname(surface_file), "surface_affiliate.bin"
+    )
     shutil.copy(
         surface_file,
         surface_file_copy,
     )
 
-    e.add_files(surface_file_copy)
+    # Make new export manifest with entry for file with affilate access
+    new_entry = {
+        "absolute_path": surface_file_copy,
+        "exported_at": datetime.datetime.now(datetime.UTC)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "exported_by": "TEST",
+    }
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+        manifest.append(new_entry)
+
+    os.remove(manifest_file)
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
+
+    e.add_files()
     e.upload()
     time.sleep(1)
 
@@ -414,17 +581,29 @@ def test_case_with_no_children(token, case_metadata):
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
     time.sleep(1)
 
+    manifest_file = "tests/data/.dataio_export_manifest.json"
+    manifest = [
+        {
+            "absolute_path": "path/to/NO_SUCH_FILES_EXIST.*",
+            "exported_at": "2025-07-22T08:07:52.197429Z",
+            "exported_by": "TEST",
+        }
+    ]
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
+
     with pytest.warns(UserWarning) as warnings_record:
-        e.add_files("tests/data/NO_SUCH_FILES_EXIST.*")
+        e.add_files()
         e.upload()
         time.sleep(1)
         for _ in warnings_record:
-            assert len(warnings_record) == 2, warnings_record
+            assert len(warnings_record) == 1, warnings_record
             assert (
                 warnings_record[0].message.args[0].startswith("No files found")
             )
@@ -437,8 +616,13 @@ def test_case_with_no_children(token, case_metadata):
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
+    # Delete manifest file
+    os.remove(manifest_file)
 
-def test_missing_child_metadata(token, case_metadata, surface_file):
+
+def test_missing_child_metadata(
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+):
     """
     Try to upload files where one does not have metadata. Assert that warning is given
     and that upload commences with the other files. Check that the children are present.
@@ -447,24 +631,39 @@ def test_missing_child_metadata(token, case_metadata, surface_file):
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
 
-    # Add a valid child
-    e.add_files(surface_file)
-
     # Make a copy of the surface without copying companion metadata
-    surface_file_copy = "tests/data/surface_no_metadata.bin"
-    shutil.copy(
-        surface_file,
-        surface_file_copy,
+    surface_file_copy = os.path.join(
+        os.path.dirname(surface_file), "surface_no_metadata.bin"
     )
+    shutil.copy(surface_file, surface_file_copy)
+
+    new_entry = {
+        "absolute_path": surface_file_copy,
+        "exported_at": datetime.datetime.now(datetime.UTC)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "exported_by": "TEST",
+    }
+
+    # Append entry for file missing metadata in export manifest
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+        manifest.append(new_entry)
+
+    assert len(manifest) == 2
+    os.remove(manifest_file)
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
 
     # Assert that expected warning is given when the binary file
     # do not have a companion metadata file
     with pytest.warns(UserWarning) as warnings_record:
-        e.add_files(surface_file_copy)
+        e.add_files()
         for _ in warnings_record:
             assert len(warnings_record) == 1, warnings_record
             assert warnings_record[0].message.args[0].startswith(
@@ -479,6 +678,11 @@ def test_missing_child_metadata(token, case_metadata, surface_file):
     # Assert parent and valid child is on Sumo
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
     assert total == 2
+
+    assert os.path.exists(sumo_uploads_file)
+    with open(sumo_uploads_file) as f:
+        uploads = json.load(f)
+    assert uploads[-1]["last_index_manifest"] == 1
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
@@ -498,6 +702,7 @@ def test_invalid_yml_in_case_metadata(token):
     with pytest.warns(UserWarning) as warnings_record:
         uploader.CaseOnDisk(
             case_metadata_path=case_file,
+            casepath=CASEPATH,
             sumoclient=sumoclient,
         )
         for _ in warnings_record:
@@ -509,7 +714,9 @@ def test_invalid_yml_in_case_metadata(token):
             )
 
 
-def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
+def test_invalid_yml_in_child_metadata(
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+):
     """
     Try to upload child with invalid yml in its metadata file.
     """
@@ -517,12 +724,10 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
-
-    # Add a valid child
-    e.add_files(surface_file)
 
     invalid_metadata_file = "tests/data/.surface_invalid.bin.yml"
     # Create a metadata file with invalid yml
@@ -536,8 +741,24 @@ def test_invalid_yml_in_child_metadata(token, case_metadata, surface_file):
         surface_file_copy,
     )
 
+    # Create new entry in export manifest
+    new_entry = {
+        "absolute_path": str(Path.cwd() / "tests/data/surface_invalid.bin"),
+        "exported_at": "2025-07-22T08:07:52.197429Z",
+        "exported_by": "TEST",
+    }
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+        manifest.append(new_entry)
+
+    os.remove(manifest_file)
+
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
+
     with pytest.warns(UserWarning, match="No metadata*"):
-        e.add_files(surface_file_copy)
+        e.add_files()
 
     e.upload()
     time.sleep(1)
@@ -572,13 +793,19 @@ def test_schema_error_in_case(token, case_metadata):
     with pytest.warns(UserWarning, match="Registering case on Sumo failed*"):
         e = uploader.CaseOnDisk(
             case_metadata_path=case_metadata,
+            casepath=CASEPATH,
             sumoclient=sumoclient,
         )
         e.register()
 
 
 def test_schema_error_in_child(
-    token, case_metadata, surface_file, surface_metadata_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """
     Try to upload files where one does have metadata with error. Assert that warning is given
@@ -588,12 +815,10 @@ def test_schema_error_in_child(
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
-
-    # Add a valid child
-    e.add_files(surface_file)
 
     # Create a metadata file with an error
     with open(surface_metadata_file) as f:
@@ -615,14 +840,38 @@ def test_schema_error_in_child(
         error_surface_file,
     )
 
-    e.add_files(error_surface_file)
+    # Create new entry in export manifest
+    absolute_path = str(Path.cwd() / "tests/data/surface_error.bin")
+    new_entry = {
+        "absolute_path": absolute_path,
+        "exported_at": "2024-01-01T08:07:52.197429Z",
+        "exported_by": "TEST",
+    }
 
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+        manifest.insert(0, new_entry)
+
+    os.remove(manifest_file)
+
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
+
+    e.add_files()
     e.upload()
     time.sleep(1)
 
     # Assert parent and valid child are on Sumo
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
     assert total == 2
+    assert os.path.exists(sumo_uploads_file)
+
+    with open(sumo_uploads_file) as f:
+        uploads = json.load(f)
+
+    # Asset that there is one record in sumo uploads log, that the last_index_manifest is the length of manifest, which is 1 for this test.
+    assert len(uploads) == 1
+    assert uploads[-1]["last_index_manifest"] == 1
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
@@ -631,6 +880,142 @@ def test_schema_error_in_child(
 
     os.remove(error_surface_file)
     os.remove(error_metadata_file)
+
+
+def test_corrupted_export_manifest(token, case_metadata):
+    """
+    Test sumo uploads behavor when export manifest is corrupted.
+    """
+    sumoclient = SumoClient(env=ENV, token=token)
+
+    e = uploader.CaseOnDisk(
+        case_metadata_path=case_metadata,
+        casepath=CASEPATH,
+        sumoclient=sumoclient,
+    )
+
+    manifest = [
+        {
+            "absolute_path": "/path/to/file1",
+            "exported_at": "2024-01-01T00:00:00Z",
+            "exported_by": "TEST",
+        },
+        {
+            "absolute_path": "/path/to/file2",
+            "exported_at": "2025-01-01T00:00:00Z",
+            "exported_by": "TEST",
+        },
+    ]
+
+    sumo_uploads = [
+        {
+            "last_index_manifest": 0,
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
+    ]
+
+    sumo_uploads_corrupted_index = [
+        {
+            "last_index_manifest": 1,
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
+    ]
+
+    sumo_uploads_corrupted_timestamp = [
+        {
+            "last_index_manifest": 0,
+            "timestamp": "2020-01-01T00:00:00Z",
+        }
+    ]
+
+    # assert that the next index is 1.
+    assert e._get_next_index(manifest, sumo_uploads) == 1
+    # assert the next index is 0.
+    assert e._get_next_index(manifest, sumo_uploads_corrupted_index) == 0
+    assert e._get_next_index(manifest, sumo_uploads_corrupted_timestamp) == 0
+
+
+def test_multiple_exports_to_manifest_append_to_sumo_uploads(
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
+):
+    """
+    Upload new files added to the export manifest and new entry should be appended to the Sumo uploads log.
+    """
+    sumoclient = SumoClient(env=ENV, token=token)
+
+    e = uploader.CaseOnDisk(
+        case_metadata_path=case_metadata,
+        casepath=CASEPATH,
+        sumoclient=sumoclient,
+    )
+    e.register()
+
+    # Assert that there is 1 file added.
+    e.add_files()
+    assert len(e.files) == 1
+
+    e.upload()
+
+    # Assert that there is a sumo uploads log file and it has 1 entry.
+    assert os.path.exists(sumo_uploads_file)
+    with open(sumo_uploads_file, "r") as f:
+        sumo_uploads = json.load(f)
+    assert len(sumo_uploads) == 1
+
+    # Create new entry in export manifest
+    metadata_file_copy = os.path.join(
+        os.path.dirname(surface_file), ".surface_copy.bin.yml"
+    )
+    surface_file_copy = os.path.join(
+        os.path.dirname(surface_file), "surface_copy.bin"
+    )
+    shutil.copy(surface_metadata_file, metadata_file_copy)
+    shutil.copy(surface_file, surface_file_copy)
+
+    new_entry = {
+        "absolute_path": surface_file_copy,
+        "exported_at": datetime.datetime.now(datetime.UTC)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        "exported_by": "TEST",
+    }
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+        manifest.append(new_entry)
+
+    os.remove(manifest_file)
+    with open(manifest_file, "w") as f:
+        json.dump(manifest, f, indent=4)
+
+    # Assert that there is 1 new file added.
+    e.add_files()
+    assert len(e.files) == 2
+
+    e.upload()
+    time.sleep(1)
+
+    with open(sumo_uploads_file, "r") as f:
+        sumo_uploads = json.load(f)
+
+    with open(manifest_file, "r") as f:
+        manifest = json.load(f)
+
+    assert len(sumo_uploads) == 2
+    assert sumo_uploads[-1]["last_index_manifest"] == len(manifest) - 1
+
+    # Delete this case
+    logger.debug("Cleanup after test: delete case")
+    path = f"/objects('{e.sumo_parent_id}')"
+    sumoclient.delete(path=path)
+
+    os.remove(surface_file_copy)
+    os.remove(metadata_file_copy)
 
 
 def _get_segy_path(segy_command):
@@ -684,12 +1069,13 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
     time.sleep(1)
 
-    e.add_files(segy_file)
+    e.add_files()
     e.upload()
     time.sleep(1)
 
@@ -796,7 +1182,12 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     reason="do not run on windows due to file-path differences",
 )
 def test_sumo_mode_default(
-    token, case_metadata, surface_file, surface_metadata_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """
     Test that SUMO_MODE defaults to copy, i.e. not deleting file after upload.
@@ -805,12 +1196,13 @@ def test_sumo_mode_default(
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
     )
     e.register()
 
     # Add a valid child
-    e.add_files(surface_file)
+    e.add_files()
 
     e.upload()
     time.sleep(1)
@@ -822,6 +1214,8 @@ def test_sumo_mode_default(
     # Assert that child file and metadatafile are not deleted
     assert os.path.exists(surface_file)
     assert os.path.exists(surface_metadata_file)
+    assert os.path.exists(manifest_file)
+    assert os.path.exists(sumo_uploads_file)
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
@@ -834,7 +1228,12 @@ def test_sumo_mode_default(
     reason="do not run on windows due to file-path differences",
 )
 def test_sumo_mode_copy(
-    token, case_metadata, surface_file, surface_metadata_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """
     Test SUMO_MODE=copy, i.e. not deleting file after upload.
@@ -843,13 +1242,14 @@ def test_sumo_mode_copy(
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
         sumo_mode="copy",
     )
     e.register()
 
     # Add a valid child
-    e.add_files(surface_file)
+    e.add_files()
 
     e.upload()
     time.sleep(1)
@@ -861,6 +1261,8 @@ def test_sumo_mode_copy(
     # Assert that child file and metadatafile are not deleted
     assert os.path.exists(surface_file)
     assert os.path.exists(surface_metadata_file)
+    assert os.path.exists(manifest_file)
+    assert os.path.exists(sumo_uploads_file)
 
     # Delete this case
     logger.debug("Cleanup after test: delete case")
@@ -882,13 +1284,14 @@ def test_sumo_mode_move(
 
     e = uploader.CaseOnDisk(
         case_metadata_path=case_metadata,
+        casepath=CASEPATH,
         sumoclient=sumoclient,
         sumo_mode="moVE",  # test case-insensitive
     )
     e.register()
 
     # Add a valid child
-    e.add_files(surface_file)
+    e.add_files()
 
     e.upload()
     time.sleep(1)

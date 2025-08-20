@@ -53,19 +53,17 @@ and normally set to ``prod``.
 and normally set to ``<SCRATCH>/<USER>/<CASE_DIR>``
 e.g. ``/scratch/myfield/myuser/mycase/``
 
-Note! Filenames produced by FMU workflows use "--" as separator. Avoid this
-string in searchpaths, as it will cause following text to be parsed as a comment.
+Note! Filenames produced by FMU workflows use "--" as separator.
 
 FORWARD_MODEL example::
 
   FORWARD_MODEL XX -- Some other job that makes data
-  FORWARD_MODEL SUMO_UPLOAD(<SEARCHPATH>="share/results/maps/*.gri")
-  FORWARD_MODEL SUMO_UPLOAD(<SEARCHPATH>="share/results/polygons/*.csv")
+  FORWARD_MODEL SUMO_UPLOAD
 
 WORKFLOW_JOB example::
 
   <MY_JOB> -- The workflow job that creates data
-  SUMO_UPLOAD <SUMO_CASEPATH> "<SUMO_CASEPATH>/share/observations/maps/*.gri"  <SUMO_ENV>
+  SUMO_UPLOAD <SUMO_CASEPATH> <SUMO_ENV>
 
 """
 
@@ -85,7 +83,6 @@ def main() -> None:
 
     # Legacy? Still needed?
     args.casepath = os.path.expandvars(args.casepath)
-    args.searchpath = os.path.expandvars(args.searchpath)
 
     _check_arguments(args)
 
@@ -140,10 +137,10 @@ def sumo_upload_main(
             sumo_mode,
             config_path,
             parameters_path,
+            casepath,
         )
         # add files to the case on disk object
-        logger.info("Adding files. Search path is %s", searchpath)
-        e.add_files(searchpath)
+        e.add_files()
         logger.info("%s files has been added", str(len(e.files)))
 
         if len(e.files) == 0:
@@ -155,6 +152,7 @@ def sumo_upload_main(
         logger.info("Starting upload")
         e.upload(threads=threads)
         logger.info("Upload done")
+
     except Exception as err:
         err = err.with_traceback(None)
         logger.warning(f"Problem related to Sumo upload: {err} {type(err)}")
@@ -210,7 +208,8 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "searchpath",
         type=str,
-        help="path relative to runpath for files to upload",
+        help="The searchpath argument is deprecated and will be ignored in future versions.",
+        nargs="?",
     )
     parser.add_argument("env", type=str, help="Sumo environment to use.")
     parser.add_argument(
@@ -271,6 +270,12 @@ def _check_arguments(args) -> None:
 
     if not Path(args.casepath).exists():
         raise ValueError("Provided case path does not exist")
+
+    if args.searchpath is not None:
+        warnings.warn(
+            "The 'searchpath' argument is deprecated and will be ignored in a future version.",
+            DeprecationWarning,
+        )
 
     logger.debug("check_arguments() has ended")
 

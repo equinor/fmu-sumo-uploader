@@ -1,6 +1,5 @@
 """Objectify an FMU case (results) as it appears on the disk."""
 
-import glob
 import logging
 import os
 import time
@@ -36,16 +35,17 @@ class CaseOnDisk(SumoCase):
 
         >>> env = 'dev'
         >>> case_metadata_path = 'path/to/case_metadata.yaml'
-        >>> search_path = 'path/to/search_path/'
+        >>> casepath = 'path/to/casepath/'
 
         >>> sumoclient = sumo.wrapper.SumoClient(env=env)
         >>> case = sumo.CaseOnDisk(
                 case_metadata_path=case_metadata_path,
+                casepath=casepath,
                 sumoclient=sumoclient)
 
         After initialization, files must be explicitly indexed into the CaseOnDisk object:
 
-        >>> case.add_files(search_path)
+        >>> case.add_files()
 
         When initialized, the case can be uploaded to Sumo:
 
@@ -53,6 +53,7 @@ class CaseOnDisk(SumoCase):
 
     Args:
         case_metadata_path (str): Path to the case_metadata file for the case
+        casepath (str): Path to the case
         sumoclient (sumo.wrapper.SumoClient): SumoConnection object
 
 
@@ -66,6 +67,7 @@ class CaseOnDisk(SumoCase):
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
+        casepath="path/to/casepath",
     ):
         """Initialize CaseOnDisk.
 
@@ -88,6 +90,7 @@ class CaseOnDisk(SumoCase):
             sumo_mode,
             config_path,
             parameters_path,
+            casepath,
         )
 
         self._sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
@@ -128,11 +131,10 @@ class CaseOnDisk(SumoCase):
         """Return the files"""
         return self._files
 
-    def add_files(self, search_string):
-        """Add files to the case, based on search string"""
+    def add_files(self):
+        """Add files to the case, based on dataio export manifest file"""
 
-        logger.info("Searching for files at %s", search_string)
-        file_paths = _find_file_paths(search_string)
+        file_paths = self._find_file_paths()
 
         for file_path in file_paths:
             try:
@@ -209,6 +211,51 @@ class CaseOnDisk(SumoCase):
 
         return returned_object_id
 
+    def _find_file_paths(self):
+        """Find files and return as list of FileOnDisk instances."""
+
+        manifest = self._load_export_manifest()
+        sumo_uploads = self._load_sumo_uploads()
+        next_index = self._get_next_index(manifest, sumo_uploads)
+
+        logger.info("Finding files to upload.")
+        if next_index > len(manifest) - 1:
+            files = []
+        else:
+            logger.info(
+                f"Upload will start from index {next_index} in manifest."
+            )
+            files = [
+                f["absolute_path"]
+                for f in manifest[next_index:]
+                if os.path.isfile(f["absolute_path"])
+            ]
+
+        if len(files) == 0:
+            warnings.warn("No files found!")
+
+        return files
+
+    def _get_next_index(self, manifest, sumo_uploads):
+        "Determine the start uploading index in manifest"
+
+        if not sumo_uploads or not manifest:
+            return 0
+
+        last_uploaded_index = sumo_uploads[-1]["last_index_manifest"]
+        ts_uploads = sumo_uploads[-1]["timestamp"]
+
+        try:
+            if manifest[last_uploaded_index]["exported_at"] == ts_uploads:
+                return last_uploaded_index + 1
+        except KeyError as e:
+            logger.debug(f"KeyError while accessing manifest: {e}")
+        except IndexError as e:
+            logger.debug(f"IndexError while accessing manifest: {e}")
+
+        # When the manifest and sumo uploads log has a mismatch, like manifest is overwritten, reupload from index 0.
+        return 0
+
 
 def _load_case_metadata(case_metadata_path: str):
     """Load the case metadata."""
@@ -226,15 +273,3 @@ def _load_case_metadata(case_metadata_path: str):
     except Exception:
         warnings.warn(f"Invalid metadata in yml file {case_metadata_path}")
         return {}
-
-
-def _find_file_paths(search_string):
-    """Find files and return as list of FileOnDisk instances."""
-
-    files = [f for f in glob.glob(search_string) if os.path.isfile(f)]
-
-    if len(files) == 0:
-        warnings.warn("No files found! Please, check the search string.")
-        warnings.warn(f"Search string: {search_string}")
-
-    return files
