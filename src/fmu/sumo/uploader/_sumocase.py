@@ -30,6 +30,7 @@ class SumoCase:
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
         casepath="path/to/casepath",
+        searchpath=None,
     ):
         logger.setLevel(verbosity)
         self.sumoclient = sumoclient
@@ -43,6 +44,7 @@ class SumoCase:
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
         self._files = []
         self.sumo_mode = sumo_mode
+        self.searchpath = searchpath
 
         return
 
@@ -155,7 +157,9 @@ class SumoCase:
         if len(ok_uploads) > 0:
             upload_statistics = _calculate_upload_stats(ok_uploads)
             logger.info(upload_statistics)
-            self._update_sumo_uploads()
+            if self.searchpath is None:
+                # If using manifest: update .sumo_uploads
+                self._update_sumo_uploads()
 
         if rejected_uploads:
             logger.info(
