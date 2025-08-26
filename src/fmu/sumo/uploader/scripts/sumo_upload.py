@@ -83,6 +83,7 @@ def main() -> None:
 
     # Legacy? Still needed?
     args.casepath = os.path.expandvars(args.casepath)
+    # args.searchpath = os.path.expandvars(args.searchpath)
 
     _check_arguments(args)
 
@@ -138,6 +139,7 @@ def sumo_upload_main(
             config_path,
             parameters_path,
             casepath,
+            searchpath,
         )
         # add files to the case on disk object
         e.add_files()
@@ -274,7 +276,7 @@ def _check_arguments(args) -> None:
     if args.searchpath is not None:
         warnings.warn(
             "The 'searchpath' argument is deprecated and will be ignored in a future version.",
-            DeprecationWarning,
+            FutureWarning,
         )
 
     logger.debug("check_arguments() has ended")

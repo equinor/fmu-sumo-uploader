@@ -1,5 +1,6 @@
 """Objectify an FMU case (results) as it appears on the disk."""
 
+import glob
 import logging
 import os
 import time
@@ -68,6 +69,7 @@ class CaseOnDisk(SumoCase):
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
         casepath="path/to/casepath",
+        searchpath=None,
     ):
         """Initialize CaseOnDisk.
 
@@ -91,6 +93,7 @@ class CaseOnDisk(SumoCase):
             config_path,
             parameters_path,
             casepath,
+            searchpath,
         )
 
         self._sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
@@ -134,7 +137,10 @@ class CaseOnDisk(SumoCase):
     def add_files(self):
         """Add files to the case, based on dataio export manifest file"""
 
-        file_paths = self._find_file_paths()
+        if self.searchpath:
+            file_paths = self._find_file_paths_searchstring(self.searchpath)
+        else:
+            file_paths = self._find_file_paths()
 
         for file_path in file_paths:
             try:
@@ -233,6 +239,20 @@ class CaseOnDisk(SumoCase):
 
         if len(files) == 0:
             warnings.warn("No files found!")
+
+        return files
+
+    # fixme: the search_string parameter is deprecated and should not be used
+    #        files to upload should  be picked up through the "manifest" from fmu-dataio
+    # TODO: remove this function and related code when support for searchstring is removed
+    def _find_file_paths_searchstring(self, search_string):
+        """Find files and return as list of FileOnDisk instances."""
+
+        files = [f for f in glob.glob(search_string) if os.path.isfile(f)]
+
+        if len(files) == 0:
+            warnings.warn("No files found! Please, check the search string.")
+            warnings.warn(f"Search string: {search_string}")
 
         return files
 
