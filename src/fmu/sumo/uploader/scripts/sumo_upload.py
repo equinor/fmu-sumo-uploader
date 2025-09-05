@@ -34,6 +34,7 @@ with ``fmu-dataio``.
 
 ``fmu-dataio`` must be used to produce metadata for each file
 to be uploaded to Sumo.
+SUMO_UPLOAD automatically uploads all files that ``fmu-dataio`` has exported from the FMU workflow.
 
 The ``WF_CREATE_CASE_METADATA`` workflow job must run *before* all SUMO_UPLOAD
 instances to ensure the case is registered in Sumo before data are uploaded.
