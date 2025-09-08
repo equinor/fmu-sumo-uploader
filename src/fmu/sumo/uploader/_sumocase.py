@@ -174,7 +174,7 @@ class SumoCase:
                     f"Blob: [{u.get('blob_upload_response_status_code')}] "
                     f"{u.get('blob_upload_response_status_text')}"
                 )
-                self._sumo_logger.info(
+                self._sumo_logger.error(
                     _get_log_msg(self.sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
                 )
@@ -196,7 +196,7 @@ class SumoCase:
                     f"Blob: [{u.get('blob_upload_response_status_code')}] "
                     f"{u.get('blob_upload_response_status_text')}"
                 )
-                self._sumo_logger.info(
+                self._sumo_logger.error(
                     _get_log_msg(self.sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
                 )
