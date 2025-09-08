@@ -254,7 +254,7 @@ class SumoCase:
 def _get_log_msg(sumo_parent_id, status):
     """Return a suitable logging for upload issues."""
 
-    json = {
+    obj = {
         "upload_issue": {
             "case_uuid": str(sumo_parent_id),
             "filepath": str(status.get("blob_file_path")),
@@ -274,7 +274,7 @@ def _get_log_msg(sumo_parent_id, status):
             },
         }
     }
-    return json
+    return json.dumps(obj)
 
 
 def _calculate_upload_stats(uploads):
