@@ -212,7 +212,13 @@ def _get_parser() -> argparse.ArgumentParser:
         help="The searchpath argument is deprecated and will be ignored in future versions.",
         nargs="?",
     )
-    parser.add_argument("env", type=str, help="Sumo environment to use.", default="prod", nargs="?")
+    parser.add_argument(
+        "env",
+        type=str,
+        help="Sumo environment to use.",
+        default="prod",
+        nargs="?",
+    )
     parser.add_argument(
         "--config_path",
         type=str,
