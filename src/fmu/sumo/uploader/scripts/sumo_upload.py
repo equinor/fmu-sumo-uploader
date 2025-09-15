@@ -103,9 +103,9 @@ def main() -> None:
 def sumo_upload_main(
     casepath: str,
     searchpath: str,
-    env: str,
     metadata_path: str,
     threads: int,
+    env: str = "prod",
     config_path: str = "fmuconfig/output/global_variables.yml",
     parameters_path: str = "parameters.txt",
     sumo_mode: str = "copy",
@@ -212,7 +212,7 @@ def _get_parser() -> argparse.ArgumentParser:
         help="The searchpath argument is deprecated and will be ignored in future versions.",
         nargs="?",
     )
-    parser.add_argument("env", type=str, help="Sumo environment to use.")
+    parser.add_argument("env", type=str, help="Sumo environment to use.", default="prod", nargs="?")
     parser.add_argument(
         "--config_path",
         type=str,
