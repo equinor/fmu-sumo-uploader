@@ -89,8 +89,6 @@ def main() -> None:
 
     sumo_upload_main(
         casepath=args.casepath,
-        searchpath=args.searchpath,
-        env=args.env,
         metadata_path=args.metadata_path,
         threads=args.threads,
         config_path=args.config_path,
@@ -102,10 +100,8 @@ def main() -> None:
 
 def sumo_upload_main(
     casepath: str,
-    searchpath: str,
     metadata_path: str,
     threads: int,
-    env: str = "prod",
     config_path: str = "fmuconfig/output/global_variables.yml",
     parameters_path: str = "parameters.txt",
     sumo_mode: str = "copy",
@@ -121,6 +117,10 @@ def sumo_upload_main(
 
     try:
         # establish the connection to Sumo
+        env = os.environ.get("SUMO_ENV", "prod")
+        if env not in ["preview", "dev", "test", "prod", "localhost"]:
+            warnings.warn(f"Non-standard environment: {env}")
+
         sumoclient = SumoClient(env=env)
         logger.info("Connection to Sumo established, env=%s", env)
 
@@ -188,8 +188,6 @@ class SumoUpload(ErtScript):
         _check_arguments(args)
         sumo_upload_main(
             casepath=args.casepath,
-            searchpath=args.searchpath,
-            env=args.env,
             metadata_path=args.metadata_path,
             threads=args.threads,
             config_path=args.config_path,
@@ -209,14 +207,13 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "searchpath",
         type=str,
-        help="The searchpath argument is deprecated and will be ignored in future versions.",
+        help="The 'searchpath' argument is ignored as of version 2.0.0",
         nargs="?",
     )
     parser.add_argument(
         "env",
         type=str,
-        help="Sumo environment to use.",
-        default="prod",
+        help="The 'env' argument is ignored. Sumo environment must be set as an environment variable SUMO_ENV",
         nargs="?",
     )
     parser.add_argument(
@@ -265,24 +262,28 @@ def _check_arguments(args) -> None:
     logger.debug("Running check_arguments()")
     logger.debug("Arguments are: %s", str(vars(args)))
 
-    if args.env not in ["preview", "dev", "test", "prod", "localhost"]:
-        warnings.warn(f"Non-standard environment: {args.env}")
+    if args.searchpath is not None:
+        warnings.warn(
+            "The 'searchpath' argument is ignored as of version 2.0.0"
+        )
 
+    if args.env is not None:
+        warnings.warn(
+            "Sumo environment must be set as an environment variable SUMO_ENV"
+        )
+        if args.env != "prod":
+            raise ValueError(
+                f"Setting sumo environment as a parameter is not allowed. Found parameter '{args.env}'. It must be set as an environment variable SUMO_ENV."
+            )
     if not Path(args.casepath).is_absolute():
         if args.casepath.startswith("<") and args.casepath.endswith(">"):
             ValueError("ERT variable is not defined: %s", args.casepath)
         raise ValueError(
-            "Provided casepath must be an absolute path to the case root"
+            f"Provided casepath '{args.casepath}' must be an absolute path to the case root"
         )
 
     if not Path(args.casepath).exists():
         raise ValueError("Provided case path does not exist")
-
-    if args.searchpath is not None:
-        warnings.warn(
-            "The 'searchpath' argument is deprecated and will be ignored in a future version.",
-            DeprecationWarning,
-        )
 
     logger.debug("check_arguments() has ended")
 

@@ -1,4 +1,5 @@
 import subprocess
+import os
 
 from ert import (  # type: ignore
     ForwardModelStepDocumentation,
@@ -43,10 +44,8 @@ class SumoUpload(ForwardModelStepPlugin):
     ) -> ForwardModelStepJSON:
         return fm_step_json
 
-    def validate_pre_experiment(
-        self, fm_step_json: ForwardModelStepJSON
-    ) -> None:
-        env = fm_step_json["argList"][2]
+    def validate_pre_experiment(self) -> None:
+        env = os.environ.get("SUMO_ENV", "prod")
         command = f"sumo_login -e {env} -m silent"
         return_code = subprocess.call(command, shell=True)
 
