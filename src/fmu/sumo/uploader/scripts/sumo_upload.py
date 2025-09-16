@@ -283,7 +283,7 @@ def _check_arguments(args) -> None:
         )
 
     if not Path(args.casepath).exists():
-        raise ValueError("Provided case path does not exist")
+        raise ValueError(f"Provided case path '{args.casepath}' does not exist")
 
     logger.debug("check_arguments() has ended")
 
