@@ -20,8 +20,6 @@ class SumoUpload(ForwardModelStepPlugin):
             command=[
                 "sumo_upload",
                 "<SUMO_CASEPATH>",
-                "<SEARCHPATH>",
-                "<SUMO_ENV>",
                 "--config_path",
                 "<SUMO_CONFIG_PATH>",
                 "--parameters_path",
