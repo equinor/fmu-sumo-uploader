@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 from ert import (  # type: ignore
@@ -32,7 +33,6 @@ class SumoUpload(ForwardModelStepPlugin):
                 "<SUMO_CONFIG_PATH>": "fmuconfig/output/global_variables.yml",
                 "<PARAMETERS_PATH>": "parameters.txt",
                 "<SUMO_MODE>": "copy",
-                "<SUMO_ENV>": "prod",
             },
             stderr_file="sumo_upload.stderr",
             stdout_file="sumo_upload.stdout",
@@ -46,7 +46,7 @@ class SumoUpload(ForwardModelStepPlugin):
     def validate_pre_experiment(
         self, fm_step_json: ForwardModelStepJSON
     ) -> None:
-        env = fm_step_json["argList"][2]
+        env = fm_step_json["environment"].get("SUMO_ENV", "prod")
         command = f"sumo_login -e {env} -m silent"
         return_code = subprocess.call(command, shell=True)
 
