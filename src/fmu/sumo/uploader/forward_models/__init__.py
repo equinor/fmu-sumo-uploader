@@ -1,5 +1,5 @@
-import subprocess
 import os
+import subprocess
 
 from ert import (  # type: ignore
     ForwardModelStepDocumentation,
@@ -21,7 +21,6 @@ class SumoUpload(ForwardModelStepPlugin):
                 "sumo_upload",
                 "<SUMO_CASEPATH>",
                 "<SEARCHPATH>",
-                "<SUMO_ENV>",
                 "--config_path",
                 "<SUMO_CONFIG_PATH>",
                 "--parameters_path",
@@ -33,7 +32,6 @@ class SumoUpload(ForwardModelStepPlugin):
                 "<SUMO_CONFIG_PATH>": "fmuconfig/output/global_variables.yml",
                 "<PARAMETERS_PATH>": "parameters.txt",
                 "<SUMO_MODE>": "copy",
-                "<SUMO_ENV>": "prod",
             },
             stderr_file="sumo_upload.stderr",
             stdout_file="sumo_upload.stdout",
