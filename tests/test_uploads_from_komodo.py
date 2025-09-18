@@ -19,7 +19,6 @@ from random import randint, seed
 
 import pytest
 import xtgeo
-
 from fmu.sumo.explorer import Explorer
 
 if not sys.platform.startswith("darwin"):

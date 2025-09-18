@@ -12,10 +12,10 @@ from pathlib import Path
 import pytest
 import xtgeo
 import yaml
-from sumo.wrapper import SumoClient
-
 from fmu.dataio import CreateCaseMetadata, ExportData
 from fmu.dataio.manifest import get_manifest_path
+from sumo.wrapper import SumoClient
+
 from fmu.sumo import uploader
 
 if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):

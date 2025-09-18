@@ -67,7 +67,7 @@ class CaseOnDisk(SumoCase):
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
-        casepath="path/to/casepath",
+        casepath=None,
     ):
         """Initialize CaseOnDisk.
 
