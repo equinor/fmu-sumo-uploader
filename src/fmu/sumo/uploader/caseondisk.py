@@ -231,9 +231,6 @@ class CaseOnDisk(SumoCase):
                 if os.path.isfile(f["absolute_path"])
             ]
 
-        if len(files) == 0:
-            warnings.warn("No files found!")
-
         return files
 
     def _get_next_index(self, manifest, sumo_uploads):

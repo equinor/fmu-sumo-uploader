@@ -146,7 +146,7 @@ def sumo_upload_main(
 
         if len(e.files) == 0:
             logger.debug("There are 0 (zero) files.")
-            warnings.warn("No files found - aborting ")
+            logger.info("No files found - aborting ")
             return
 
         # upload the indexed files
