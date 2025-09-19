@@ -67,7 +67,7 @@ class CaseOnDisk(SumoCase):
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
-        casepath="path/to/casepath",
+        casepath=None,
     ):
         """Initialize CaseOnDisk.
 
@@ -230,9 +230,6 @@ class CaseOnDisk(SumoCase):
                 for f in manifest[next_index:]
                 if os.path.isfile(f["absolute_path"])
             ]
-
-        if len(files) == 0:
-            warnings.warn("No files found!")
 
         return files
 

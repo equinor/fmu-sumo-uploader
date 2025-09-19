@@ -598,15 +598,10 @@ def test_case_with_no_children(token, case_metadata):
     with open(manifest_file, "w") as f:
         json.dump(manifest, f, indent=4)
 
-    with pytest.warns(UserWarning) as warnings_record:
-        e.add_files()
-        e.upload()
-        time.sleep(1)
-        for _ in warnings_record:
-            assert len(warnings_record) == 1, warnings_record
-            assert (
-                warnings_record[0].message.args[0].startswith("No files found")
-            )
+    e.add_files()
+    e.upload()
+
+    assert len(e.files) == 0
 
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
     assert total == 1

@@ -29,7 +29,7 @@ class SumoCase:
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
         parameters_path="parameters.txt",
-        casepath="path/to/casepath",
+        casepath=None,
     ):
         logger.setLevel(verbosity)
         self.sumoclient = sumoclient
