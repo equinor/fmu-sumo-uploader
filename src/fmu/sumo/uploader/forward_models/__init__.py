@@ -45,13 +45,18 @@ class SumoUpload(ForwardModelStepPlugin):
         self, fm_step_json: ForwardModelStepJSON
     ) -> None:
         env = os.environ.get("SUMO_ENV", "prod")
+        if env not in ["preview", "dev", "test", "prod"]:
+            raise ForwardModelStepValidationError(
+                f"Invalid value for environment variable 'SUMO_ENV': {env}. Valid values are preview, dev, test and prod."
+            )
         command = f"sumo_login -e {env} -m silent"
         return_code = subprocess.call(command, shell=True)
 
         err_msg = (
-            "Your config uses Sumo, please authenticate"
-            " by running the following in your terminal:"
-            f" sumo_login{f' -e {env}' if env != 'prod' else ''}"
+            f"Your config uses Sumo. Detected environment varibale 'SUMO_ENV': {env}\n"
+            "- If the value of `SUMO_ENV` is as expected, please run the following in your terminal:"
+            f" sumo_login{f' -e {env}' if env != 'prod' else ''}\n"
+            f"- If the value is not correct, set `SUMO_ENV` to your desired environment in your terminal. Valid values are preview, dev, test and prod."
         )
 
         if return_code != 0:
