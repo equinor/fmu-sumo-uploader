@@ -38,7 +38,7 @@ def fixture_case_metadata():
     case_metadata_file = CreateCaseMetadata(
         config=global_vars,
         rootfolder="tests/data/",
-        casename="TestCase from fmu.sumo",
+        casename="TestCase from fmu-sumo-uploader",
     ).export()
 
     yield case_metadata_file
