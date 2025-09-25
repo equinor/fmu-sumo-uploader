@@ -68,7 +68,7 @@ def _get_suitable_cases(explorer):
     recently"""
     cases = explorer.cases
     cases = cases.filter(user="f_scout_ci")
-    assert len(cases) > 0
+    assert len(cases) > 0, "Found no cases uploaded by f_scout_ci"
     selected = []
     an_hour_ago = datetime.now(timezone.utc) + timedelta(hours=-1)
     a_day_ago = datetime.now(timezone.utc) + timedelta(hours=-24)
