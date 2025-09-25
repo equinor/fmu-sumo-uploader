@@ -45,8 +45,12 @@ def fixture_case_metadata():
         case_metadata = yaml.safe_load(f)
 
     if case_metadata["fmu"]["case"]["user"]["id"] == "runner":
-        case_metadata["fmu"]["case"]["user"]["id"] = "sumo_uploader_nightly_run"
-        case_metadata["tracklog"][0]["user"]["id"] = "sumo_uploader_nightly_run"
+        case_metadata["fmu"]["case"]["user"]["id"] = (
+            "sumo_uploader_nightly_run"
+        )
+        case_metadata["tracklog"][0]["user"]["id"] = (
+            "sumo_uploader_nightly_run"
+        )
 
     with open(case_metadata_file, "w", encoding="utf-8") as stream:
         yaml.safe_dump(case_metadata, stream)
