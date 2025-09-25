@@ -243,6 +243,11 @@ def test_sumo_uploads(
     assert len(sumo_uploads) == 1
     assert sumo_uploads[-1]["last_index_manifest"] == len(manifest) - 1
 
+    # Delete this case
+    logger.debug("Cleanup after test: delete case")
+    path = f"/objects('{case.sumo_parent_id}')"
+    sumoclient.delete(path=path)
+
 
 def test_upload_without_registration(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
