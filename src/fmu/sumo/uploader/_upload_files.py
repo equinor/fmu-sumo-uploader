@@ -26,11 +26,8 @@ def get_parameter_file(parameters_path, config_path):
     """Return a parameters object from the parameters.txt file
 
     Args:
-        case_uuid (str): parent uuid for case
-        realization_id (str): the id of the realization
         parameters_path (str): path to the parameters.txt file
         config_path (str): path to the fmu config file
-        sumoclient (SumoClient): Initialized sumo client for performing query
 
     Returns:
         SumoFile: parameters ready for upload, or None
