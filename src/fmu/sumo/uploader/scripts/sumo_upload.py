@@ -267,16 +267,19 @@ def _check_arguments(args) -> None:
             category=FutureWarning,
         )
 
-    if args.env is not None:
-        if args.env != "prod":
-            raise ValueError(
-                "Setting sumo environment as a parameter is not allowed. It must be set as an environment variable SUMO_ENV"
+    if args.env:
+        if args.env == "prod":
+            warnings.warn(
+                "The argument 'env' is ignored and can safely be removed.",
+                FutureWarning,
             )
         else:
-            warnings.warn(
-                "The `env` argument is ignored and can safely be removed.",
-                category=FutureWarning,
-            )
+            if os.getenv("SUMO_ENV") is None:
+                raise ValueError(
+                    "Setting sumo environment through argument input is not allowed. "
+                    "It must be set as an environment variable SUMO_ENV"
+                )
+
     if not Path(args.casepath).is_absolute():
         if args.casepath.startswith("<") and args.casepath.endswith(">"):
             ValueError("ERT variable is not defined: %s", args.casepath)
