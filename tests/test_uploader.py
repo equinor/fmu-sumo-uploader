@@ -38,8 +38,22 @@ def fixture_case_metadata():
     case_metadata_file = CreateCaseMetadata(
         config=global_vars,
         rootfolder="tests/data/",
-        casename="TestCase from fmu.sumo",
+        casename="TestCase from fmu-sumo-uploader",
     ).export()
+
+    with open(case_metadata_file) as f:
+        case_metadata = yaml.safe_load(f)
+
+    if case_metadata["fmu"]["case"]["user"]["id"] == "runner":
+        case_metadata["fmu"]["case"]["user"]["id"] = (
+            "sumo_uploader_nightly_run"
+        )
+        case_metadata["tracklog"][0]["user"]["id"] = (
+            "sumo_uploader_nightly_run"
+        )
+
+    with open(case_metadata_file, "w", encoding="utf-8") as stream:
+        yaml.safe_dump(case_metadata, stream)
 
     yield case_metadata_file
 
@@ -232,6 +246,11 @@ def test_sumo_uploads(
 
     assert len(sumo_uploads) == 1
     assert sumo_uploads[-1]["last_index_manifest"] == len(manifest) - 1
+
+    # Delete this case
+    logger.debug("Cleanup after test: delete case")
+    path = f"/objects('{case.sumo_parent_id}')"
+    sumoclient.delete(path=path)
 
 
 def test_upload_without_registration(
