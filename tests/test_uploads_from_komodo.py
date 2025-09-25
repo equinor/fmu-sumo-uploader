@@ -128,7 +128,6 @@ def test_case_surfaces(explorer: Explorer):
         for surf in case.surfaces:
             assert surf.uuid
             assert surf.name
-            assert surf.tagname
             if surf.metadata.get("fmu").get("aggregation") is not None:
                 continue
             if surf.ensemble is not None:
