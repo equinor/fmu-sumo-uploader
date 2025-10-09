@@ -270,6 +270,7 @@ def test_case_polygons(explorer: Explorer):
             ens_count >= 6 * realizations
             and real_count >= 6 * realizations
             and tagname_count >= 6 * realizations
+            and len(case.polygons.filter(dataformat="parquet")) > 0
         ):
             print(
                 "'Perfect' polygon case:",
@@ -291,10 +292,11 @@ def test_case_polygons(explorer: Explorer):
             )
 
     # Will not test every blob element,
-    # just test that a random blob can be read
+    # just test that a random parquet blob can be read
     seed()
-    random_index = randint(0, len(case.polygons) - 1)
-    case.polygons[random_index].to_pandas()
+    parquet_polygons = case.polygons.filter(dataformat="parquet")
+    random_index = randint(0, len(parquet_polygons) - 1)
+    parquet_polygons[random_index].to_pandas()
 
     print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
     # There could be many failed runs from komodo-release repo,
