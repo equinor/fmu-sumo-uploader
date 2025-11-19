@@ -250,12 +250,11 @@ def test_case_polygons(explorer: Explorer):
     """Test polygons from cases uploaded from komodo-releases"""
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
-    
+
     for case in cases:
         assert len(case.polygons.uuids) == len(case.polygons)
         assert sum(
-            len(case.polygons.filter(name=n))
-            for n in case.polygons.names
+            len(case.polygons.filter(name=n)) for n in case.polygons.names
         ) == len(case.polygons)
 
         realizations = len(case.realizations)
@@ -377,19 +376,21 @@ def test_case_seismic(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
     for case in cases:
+        assert len(case.cubes.uuids) == len(case.cubes)
+        assert sum(
+            len(case.cubes.filter(name=n)) for n in case.cubes.names
+        ) == len(case.cubes)
+
+        assert len(case.cubes.filter(tagname=case.cubes.tagnames)) == len(
+            case.cubes
+        )
+
         realizations = len(case.realizations)
-        ens_count = 0
-        real_count = 0
-        for cube in case.cubes:
-            assert cube.uuid
-            assert cube.name
-            assert cube.tagname
-            if cube.metadata.get("fmu").get("aggregation") is not None:
-                continue
-            if cube.ensemble is not None:
-                ens_count += 1
-            if cube.realization is not None:
-                real_count += 1
+        ens_count = len(
+            case.cubes.filter(ensemble=[ens.name for ens in case.ensembles])
+        )
+        real_count = len(case.cubes.filter(realization=True))
+
         if ens_count >= 10 * realizations and real_count >= 10 * realizations:
             print(
                 "'Perfect' seismic case:",
