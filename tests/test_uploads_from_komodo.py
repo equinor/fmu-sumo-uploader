@@ -121,21 +121,17 @@ def test_case_surfaces(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
     for case in cases:
+        surfs = case.surfaces
+        assert len(surfs.uuids) == len(surfs)
+        assert sum(len(surfs.filter(name=n)) for n in surfs.names) == len(
+            surfs
+        )
+
         realizations = len(case.realizations)
-        ens_count = 0
-        real_count = 0
-        preproc_count = 0
-        for surf in case.surfaces:
-            assert surf.uuid
-            assert surf.name
-            if surf.metadata.get("fmu").get("aggregation") is not None:
-                continue
-            if surf.ensemble is not None:
-                ens_count += 1
-            if surf.realization is not None:
-                real_count += 1
-            if surf.ensemble is None and surf.realization is None:
-                preproc_count += 1
+        ens_count = len(surfs.filter(ensemble=True))
+        real_count = len(surfs.filter(realization=True))
+        preproc_count = len(surfs.filter(realization=False, ensemble=False))
+
         if (
             ens_count >= 54 * realizations
             and real_count >= 54 * realizations
@@ -180,32 +176,22 @@ def test_case_tables(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
     for case in cases:
-        realizations = len(case.realizations)
-        ens_count = 0
-        real_count = 0
-        tagname_count = 0
-        # SIM2SUMO uploads:
-        drogon_rft_count = 0
-        drogon_satfunc_count = 0
-        drogon_summary_count = 0
+        tbls = case.tables
+        assert len(tbls.uuids) == len(tbls)
+        assert sum(len(tbls.filter(name=n)) for n in tbls.names) == len(tbls)
 
-        for tbl in case.tables:
-            assert tbl.uuid
-            assert tbl.name
-            if tbl.metadata.get("fmu").get("aggregation") is not None:
-                continue
-            if tbl.ensemble is not None:
-                ens_count += 1
-            if tbl.realization is not None:
-                real_count += 1
-            if tbl.tagname is not None:
-                tagname_count += 1
-            if tbl.name == "DROGON" and tbl.tagname == "rft":
-                drogon_rft_count += 1
-            if tbl.name == "DROGON" and tbl.tagname == "satfunc":
-                drogon_satfunc_count += 1
-            if tbl.name == "DROGON" and tbl.tagname == "summary":
-                drogon_summary_count += 1
+        realizations = len(case.realizations)
+        ens_count = len(tbls.filter(ensemble=True))
+        real_count = len(tbls.filter(realization=True))
+        tagname_count = len(tbls.filter(tagname=tbls.tagnames))
+        drogon_rft_count = len(tbls.filter(name="DROGON", tagname="rft"))
+        drogon_satfunc_count = len(
+            tbls.filter(name="DROGON", tagname="satfunc")
+        )
+        drogon_summary_count = len(
+            tbls.filter(name="DROGON", tagname="summary")
+        )
+
         if (
             ens_count >= 7 * realizations
             and real_count >= 7 * realizations
@@ -252,25 +238,22 @@ def test_case_polygons(explorer: Explorer):
     perfect_cases = 0
 
     for case in cases:
-        assert len(case.polygons.uuids) == len(case.polygons)
-        assert sum(
-            len(case.polygons.filter(name=n)) for n in case.polygons.names
-        ) == len(case.polygons)
+        polys = case.polygons
+        assert len(polys.uuids) == len(polys)
+        assert sum(len(polys.filter(name=n)) for n in polys.names) == len(
+            polys
+        )
 
         realizations = len(case.realizations)
-        ens_count = len(
-            case.polygons.filter(ensemble=[ens.name for ens in case.ensembles])
-        )
-        real_count = len(case.polygons.filter(realization=True))
-        tagname_count = len(
-            case.polygons.filter(tagname=case.polygons.tagnames)
-        )
+        ens_count = len(polys.filter(ensemble=True))
+        real_count = len(polys.filter(realization=True))
+        tagname_count = len(polys.filter(tagname=polys.tagnames))
 
         if (
             ens_count >= 6 * realizations
             and real_count >= 6 * realizations
             and tagname_count >= 6 * realizations
-            and len(case.polygons.filter(dataformat="parquet")) > 0
+            and len(polys.filter(dataformat="parquet")) > 0
         ):
             print(
                 "'Perfect' polygon case:",
@@ -309,24 +292,18 @@ def test_case_dictionaries(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
     for case in cases:
+        dicts = case.dictionaries
+        assert len(dicts.uuids) == len(dicts)
+        assert sum(len(dicts.filter(name=n)) for n in dicts.names) == len(
+            dicts
+        )
+
         realizations = len(case.realizations)
-        ens_count = 0
-        real_count = 0
-        tagname_count = 0
-        name_parameter_found = False
-        for dct in case.dictionaries:
-            assert dct.uuid
-            assert dct.name
-            if dct.metadata.get("fmu").get("aggregation") is not None:
-                continue
-            if dct.ensemble is not None:
-                ens_count += 1
-            if dct.realization is not None:
-                real_count += 1
-            if dct.tagname is not None:
-                tagname_count += 1
-            if dct.name == "parameters":
-                name_parameter_found = True
+        ens_count = len(dicts.filter(ensemble=True))
+        real_count = len(dicts.filter(realization=True))
+        tagname_count = len(dicts.filter(tagname=dicts.tagnames))
+        name_parameter_found = len(dicts.filter(name="parameters")) > 0
+
         if (
             ens_count >= 1 * realizations
             and real_count >= 1 * realizations
@@ -376,20 +353,15 @@ def test_case_seismic(explorer: Explorer):
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
     for case in cases:
-        assert len(case.cubes.uuids) == len(case.cubes)
-        assert sum(
-            len(case.cubes.filter(name=n)) for n in case.cubes.names
-        ) == len(case.cubes)
+        cbs = case.cubes
+        assert len(cbs.uuids) == len(cbs)
+        assert sum(len(cbs.filter(name=n)) for n in cbs.names) == len(cbs)
 
-        assert len(case.cubes.filter(tagname=case.cubes.tagnames)) == len(
-            case.cubes
-        )
+        assert len(cbs.filter(tagname=cbs.tagnames)) == len(cbs)
 
         realizations = len(case.realizations)
-        ens_count = len(
-            case.cubes.filter(ensemble=[ens.name for ens in case.ensembles])
-        )
-        real_count = len(case.cubes.filter(realization=True))
+        ens_count = len(cbs.filter(ensemble=True))
+        real_count = len(cbs.filter(realization=True))
 
         if ens_count >= 10 * realizations and real_count >= 10 * realizations:
             print(
