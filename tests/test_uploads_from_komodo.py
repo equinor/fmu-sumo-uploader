@@ -250,22 +250,23 @@ def test_case_polygons(explorer: Explorer):
     """Test polygons from cases uploaded from komodo-releases"""
     cases = _get_suitable_cases(explorer)
     perfect_cases = 0
+    
     for case in cases:
+        assert len(case.polygons.uuids) == len(case.polygons)
+        assert sum(
+            len(case.polygons.filter(name=n))
+            for n in case.polygons.names
+        ) == len(case.polygons)
+
         realizations = len(case.realizations)
-        ens_count = 0
-        real_count = 0
-        tagname_count = 0
-        for poly in case.polygons:
-            assert poly.uuid
-            assert poly.name
-            if poly.metadata.get("fmu").get("aggregation") is not None:
-                continue
-            if poly.ensemble is not None:
-                ens_count += 1
-            if poly.realization is not None:
-                real_count += 1
-            if poly.tagname is not None:
-                tagname_count += 1
+        ens_count = len(
+            case.polygons.filter(ensemble=[ens.name for ens in case.ensembles])
+        )
+        real_count = len(case.polygons.filter(realization=True))
+        tagname_count = len(
+            case.polygons.filter(tagname=case.polygons.tagnames)
+        )
+
         if (
             ens_count >= 6 * realizations
             and real_count >= 6 * realizations
