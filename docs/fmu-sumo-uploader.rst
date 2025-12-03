@@ -10,7 +10,7 @@ upload to the Sumo core server.
 This is primarily intended for Sumo developers. 
 
 The Sumo API is described at 
-`https://main-sumo-prod.radix.equinor.com/swagger-ui/ <https://main-sumo-prod.radix.equinor.com/swagger-ui/>`_
+`https://api.sumo.equinor.com/swagger-ui/ <https://api.sumo.equinor.com/swagger-ui/>`_
 
 The data model and schema and the component used to create metadata is described at 
 `https://fmu-dataio.readthedocs.io/en/latest/datamodel.html <https://fmu-dataio.readthedocs.io/en/latest/datamodel.html>`_
