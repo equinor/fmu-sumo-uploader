@@ -87,7 +87,7 @@ class SumoFile:
 
     def _upload_byte_string(self, blob_url):
         blobclient = BlobClient.from_blob_url(blob_url)
-        bc.max_single_put_size=4*1024*1024
+        blobclient.max_single_put_size=4*1024*1024
         content_settings = ContentSettings(
             content_type="application/octet-stream"
         )
