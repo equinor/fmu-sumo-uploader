@@ -87,6 +87,7 @@ class SumoFile:
 
     def _upload_byte_string(self, blob_url):
         blobclient = BlobClient.from_blob_url(blob_url)
+        bc.max_single_put_size=4*1024*1024
         content_settings = ContentSettings(
             content_type="application/octet-stream"
         )
@@ -101,6 +102,7 @@ class SumoFile:
             overwrite=True,
             content_settings=content_settings,
             timeout=timeout,
+            connection_timeout=600,
         )
         # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.timezone.utc), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.timezone.utc), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
         # ... which is not what the caller expects, so we return something reasonable.
