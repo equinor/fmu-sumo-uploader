@@ -106,7 +106,7 @@ class SumoFile:
         return blobclient
 
     def _upload_byte_string(self, blob_url):
-        blobclient = BlobClient.from_blob_url(blob_url)
+        blobclient = self.get_blob_client(blob_url)
         content_settings = ContentSettings(
             content_type="application/octet-stream"
         )
