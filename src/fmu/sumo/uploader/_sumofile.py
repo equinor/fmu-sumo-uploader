@@ -18,9 +18,9 @@ from azure.storage.blob import BlobClient, ContentSettings
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 
-__path_re = re.compile("^/?([^/]+)/(.*)")
+_path_re = re.compile("^/?([^/]+)/(.*)")
 
-__max_single_put_size = 16 * 1024 * 1024
+_max_single_put_size = 16 * 1024 * 1024
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -94,14 +94,14 @@ class SumoFile:
     def get_blob_client(self, blob_url):
         scheme, netloc, path, _, query, _ = urlparse(blob_url)
         accounturl = scheme + "://" + netloc + "?" + query
-        match = __path_re.match(path)
+        match = _path_re.match(path)
         assert match is not None
         container, blobname = match.groups()
         blobclient = BlobClient(
             accounturl,
             container,
             blobname,
-            max_single_put_size=__max_single_put_size,
+            max_single_put_size=_max_single_put_size,
         )
         return blobclient
 
