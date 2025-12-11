@@ -6,15 +6,21 @@ Base class for FileOnJob and FileOnDisk classes.
 
 import math
 import os
+import re
 import subprocess
 import sys
 import time
 import warnings
+from urllib.parse import urlparse
 
 import httpx
 from azure.storage.blob import BlobClient, ContentSettings
 
 from fmu.sumo.uploader._logger import get_uploader_logger
+
+_path_re = re.compile("^/?([^/]+)/(.*)")
+
+_max_single_put_size = 16 * 1024 * 1024
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -85,9 +91,22 @@ class SumoFile:
         response = sumoclient.post(path=path, json=self.metadata)
         return response
 
+    def get_blob_client(self, blob_url):
+        scheme, netloc, path, _, query, _ = urlparse(blob_url)
+        accounturl = scheme + "://" + netloc + "?" + query
+        match = _path_re.match(path)
+        assert match is not None
+        container, blobname = match.groups()
+        blobclient = BlobClient(
+            accounturl,
+            container,
+            blobname,
+            max_single_put_size=_max_single_put_size,
+        )
+        return blobclient
+
     def _upload_byte_string(self, blob_url):
-        blobclient = BlobClient.from_blob_url(blob_url)
-        blobclient.max_single_put_size = 4 * 1024 * 1024
+        blobclient = self.get_blob_client(blob_url)
         content_settings = ContentSettings(
             content_type="application/octet-stream"
         )
