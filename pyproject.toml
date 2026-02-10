@@ -14,7 +14,7 @@ dependencies = [
   "azure.storage.blob",
   "fmu-dataio",
   "httpx>=0.24.1",
-  "OpenVDS; sys_platform != 'darwin' and python_version < '3.12'",
+  "OpenVDS; sys_platform != 'darwin'",
   "ert; sys_platform != 'win32'",
 ]
 

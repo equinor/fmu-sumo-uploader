@@ -18,7 +18,7 @@ from sumo.wrapper import SumoClient
 
 from fmu.sumo import uploader
 
-if not sys.platform.startswith("darwin") and sys.version_info < (3, 12):
+if not sys.platform.startswith("darwin"):
     import openvds
 
 ENV = "dev"
@@ -1060,8 +1060,8 @@ def _get_segy_path(segy_command):
 
 
 @pytest.mark.skipif(
-    sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
-    reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
+    sys.platform.startswith("darwin"),
+    reason="do not run OpenVDS SEGYImport on mac os",
 )
 def test_openvds_available():
     """Test that OpenVDS is installed and can be successfully called"""
@@ -1074,8 +1074,8 @@ def test_openvds_available():
 
 
 @pytest.mark.skipif(
-    sys.platform.startswith("darwin") or sys.version_info >= (3, 12),
-    reason="do not run OpenVDS SEGYImport on mac os or python 3.12",
+    sys.platform.startswith("darwin"),
+    reason="do not run OpenVDS SEGYImport on mac os",
 )
 def test_seismic_openvds_file(token, case_metadata, segy_file):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
