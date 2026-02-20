@@ -193,6 +193,7 @@ def test_initialization(token, case_metadata):
     )
 
 
+# surface_file must be included for the manifest file to be created
 def test_manifest(token, case_metadata, surface_file, manifest_file):
     """Assert that manifest exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
@@ -213,6 +214,7 @@ def test_manifest(token, case_metadata, surface_file, manifest_file):
     assert len(manifest) == 1
 
 
+# surface_file must be included for the manifest file to be created
 def test_sumo_uploads(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
