@@ -12,7 +12,8 @@ from pathlib import Path
 import pytest
 import xtgeo
 import yaml
-from fmu.dataio import CreateCaseMetadata, ExportData
+from fmu.dataio import ExportData
+from fmu.dataio._workflows.case.export_case_metadata import ExportCaseMetadata
 from fmu.dataio.manifest import get_manifest_path
 from sumo.wrapper import SumoClient
 
@@ -35,7 +36,7 @@ def fixture_case_metadata():
     global_variables_file = "tests/data/global_variables.yml"
     with open(global_variables_file) as f:
         global_vars = yaml.safe_load(f)
-    case_metadata_file = CreateCaseMetadata(
+    case_metadata_file = ExportCaseMetadata(
         config=global_vars,
         rootfolder="tests/data/",
         casename="TestCase from fmu-sumo-uploader",
