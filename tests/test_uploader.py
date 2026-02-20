@@ -12,7 +12,8 @@ from pathlib import Path
 import pytest
 import xtgeo
 import yaml
-from fmu.dataio import CreateCaseMetadata, ExportData
+from fmu.dataio import ExportData
+from fmu.dataio._workflows.case.export_case_metadata import ExportCaseMetadata
 from fmu.dataio.manifest import get_manifest_path
 from sumo.wrapper import SumoClient
 
@@ -35,7 +36,7 @@ def fixture_case_metadata():
     global_variables_file = "tests/data/global_variables.yml"
     with open(global_variables_file) as f:
         global_vars = yaml.safe_load(f)
-    case_metadata_file = CreateCaseMetadata(
+    case_metadata_file = ExportCaseMetadata(
         config=global_vars,
         rootfolder="tests/data/",
         casename="TestCase from fmu-sumo-uploader",
@@ -192,6 +193,7 @@ def test_initialization(token, case_metadata):
     )
 
 
+# surface_file must be included for the manifest file to be created
 def test_manifest(token, case_metadata, surface_file, manifest_file):
     """Assert that manifest exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
@@ -212,6 +214,7 @@ def test_manifest(token, case_metadata, surface_file, manifest_file):
     assert len(manifest) == 1
 
 
+# surface_file must be included for the manifest file to be created
 def test_sumo_uploads(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
