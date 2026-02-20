@@ -193,7 +193,7 @@ def test_initialization(token, case_metadata):
     )
 
 
-def test_manifest(token, case_metadata, manifest_file):
+def test_manifest(token, case_metadata, surface_file, manifest_file):
     """Assert that manifest exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -213,7 +213,9 @@ def test_manifest(token, case_metadata, manifest_file):
     assert len(manifest) == 1
 
 
-def test_sumo_uploads(token, case_metadata, manifest_file, sumo_uploads_file):
+def test_sumo_uploads(
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+):
     """Assert that sumo uploads log exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -326,7 +328,12 @@ def test_case(token, case_metadata):
 
 
 def test_case_with_restricted_child(
-    token, case_metadata, surface_file, surface_metadata_file, manifest_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """Assert that uploading a child with 'classification: restricted' works.
     Assumes that the identity running this test have enough rights for that."""
@@ -515,7 +522,12 @@ def test_case_with_one_child_and_parameters_txt(
 
 
 def test_case_with_one_child_with_affiliate_access(
-    token, case_metadata, surface_file, surface_metadata_file, manifest_file
+    token,
+    case_metadata,
+    surface_file,
+    surface_metadata_file,
+    manifest_file,
+    sumo_uploads_file,
 ):
     """Upload one file to Sumo with affiliate access.
     Assert that it is there."""
@@ -718,7 +730,7 @@ def test_invalid_yml_in_case_metadata(token):
 
 
 def test_invalid_yml_in_child_metadata(
-    token, case_metadata, surface_file, manifest_file
+    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
     """
     Try to upload child with invalid yml in its metadata file.
