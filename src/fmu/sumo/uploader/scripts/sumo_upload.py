@@ -20,7 +20,6 @@ from sumo.wrapper import SumoClient
 from fmu.sumo import uploader
 from fmu.sumo.uploader._logger import get_uploader_logger
 
-
 uploader_client_id = "a65dc4cc-3dec-43df-9599-e66d3abc4dca"
 
 logger = get_uploader_logger()
