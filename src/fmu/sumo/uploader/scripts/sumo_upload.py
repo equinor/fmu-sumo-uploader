@@ -20,6 +20,8 @@ from sumo.wrapper import SumoClient
 from fmu.sumo import uploader
 from fmu.sumo.uploader._logger import get_uploader_logger
 
+uploader_client_id = "a65dc4cc-3dec-43df-9599-e66d3abc4dca"
+
 logger = get_uploader_logger()
 
 
@@ -120,7 +122,7 @@ def sumo_upload_main(
         if env not in ["preview", "dev", "test", "prod", "localhost"]:
             warnings.warn(f"Non-standard environment: {env}")
 
-        sumoclient = SumoClient(env=env)
+        sumoclient = SumoClient(env=env, client_id=uploader_client_id)
         logger.info("Connection to Sumo established, env=%s", env)
 
         # initiate the case on disk object
