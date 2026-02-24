@@ -54,7 +54,7 @@ class CaseOnDisk(SumoCase):
     Args:
         case_metadata_path (str): Path to the case_metadata file for the case
         casepath (str): Path to the case
-        sumoclient (sumo.wrapper.SumoClient): SumoConnection object
+        sumoclient (sumo.wrapper.SumoClient): SumoClient object
 
 
     """
