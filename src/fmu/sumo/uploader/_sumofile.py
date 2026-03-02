@@ -11,7 +11,6 @@ import subprocess
 import sys
 import time
 import warnings
-from urllib.parse import urlparse
 
 import httpx
 from azure.storage.blob import BlobClient, ContentSettings
@@ -92,15 +91,10 @@ class SumoFile:
         return response
 
     def get_blob_client(self, blob_url):
-        scheme, netloc, path, _, query, _ = urlparse(blob_url)
-        accounturl = scheme + "://" + netloc + "?" + query
-        match = _path_re.match(path)
-        assert match is not None
-        container, blobname = match.groups()
-        blobclient = BlobClient(
-            accounturl,
-            container,
-            blobname,
+        blobclient = BlobClient.from_blob_url(
+            blob_url,
+            connection_timeout=600,
+            read_timeout=600,
             max_single_put_size=_max_single_put_size,
         )
         return blobclient
@@ -121,7 +115,6 @@ class SumoFile:
             overwrite=True,
             content_settings=content_settings,
             timeout=timeout,
-            connection_timeout=600,
         )
         # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.timezone.utc), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.timezone.utc), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
         # ... which is not what the caller expects, so we return something reasonable.
