@@ -19,7 +19,7 @@ from fmu.sumo.uploader._logger import get_uploader_logger
 
 _path_re = re.compile("^/?([^/]+)/(.*)")
 
-_max_single_put_size = 16 * 1024 * 1024
+_max_single_put_size = 4 * 1024 * 1024
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
