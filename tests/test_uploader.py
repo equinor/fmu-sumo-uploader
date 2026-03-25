@@ -1202,7 +1202,7 @@ async def test_seismic_openvds_file(token, case_metadata, segy_file):
     reason="do not run on windows due to file-path differences",
 )
 
-@pytest.mark.skipif()
+@pytest.mark.asyncio
 async def test_sumo_mode_default(
     token,
     case_metadata,
