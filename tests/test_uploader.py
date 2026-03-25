@@ -522,8 +522,8 @@ def test_case_with_one_child_and_parameters_txt(
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
-
-def test_case_with_one_child_with_affiliate_access(
+@pytest.mark.asyncio
+async def test_case_with_one_child_with_affiliate_access(
     token,
     case_metadata,
     surface_file,
@@ -581,7 +581,7 @@ def test_case_with_one_child_with_affiliate_access(
         json.dump(manifest, f, indent=4)
 
     e.add_files()
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)

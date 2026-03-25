@@ -3,7 +3,7 @@
 The function that uploads files.
 
 """
-
+import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -108,7 +108,7 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
 
 
-def _upload_files(
+async def _upload_files(
     files,
     sumoclient,
     sumo_parent_id,
@@ -166,21 +166,22 @@ def _upload_files(
 
             break
 
-    with ThreadPoolExecutor(threads) as executor:
-        results = executor.map(
-            _upload_file,
-            [(file, sumoclient, sumo_parent_id, sumo_mode) for file in files],
-        )
+    tasks = [
+        _upload_file((file, sumoclient, sumo_parent_id, sumo_mode))
+        for file in files
+    ]
+
+    results = await asyncio.gather(*tasks)
 
     return results
 
 
-def _upload_file(args):
+async def _upload_file(args):
     """Upload a file"""
 
     file, sumoclient, sumo_parent_id, sumo_mode = args
 
-    result = file.upload_to_sumo(
+    result =await file.upload_to_sumo(
         sumoclient=sumoclient,
         sumo_parent_id=sumo_parent_id,
         sumo_mode=sumo_mode,
@@ -191,7 +192,7 @@ def _upload_file(args):
     return result
 
 
-def upload_files(
+async def upload_files(
     files: list,
     sumo_parent_id: str,
     sumoclient,
@@ -209,7 +210,7 @@ def upload_files(
     Upload is kept outside classes to use multithreading.
     """
 
-    results = _upload_files(
+    results = await _upload_files(
         files,
         sumoclient,
         sumo_parent_id,
