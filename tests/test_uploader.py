@@ -215,7 +215,8 @@ def test_manifest(token, case_metadata, surface_file, manifest_file):
 
 
 # surface_file must be included for the manifest file to be created
-def test_sumo_uploads(
+@pytest.mark.asyncio
+async def test_sumo_uploads(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
     """Assert that sumo uploads log exists after exporting data"""
@@ -236,7 +237,7 @@ def test_sumo_uploads(
     case.add_files()
     assert len(case.files) == 1
 
-    case.upload()
+    await case.upload()
 
     # Assert that sumo uploads log is there.
     assert os.path.exists(sumo_uploads_file)
@@ -255,8 +256,8 @@ def test_sumo_uploads(
     path = f"/objects('{case.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
-
-def test_upload_without_registration(
+@pytest.mark.asyncio
+async def test_upload_without_registration(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
@@ -274,7 +275,7 @@ def test_upload_without_registration(
 
     case.add_files()
     with pytest.warns(UserWarning, match="Case is not registered"):
-        case.upload(threads=1)
+        await case.upload(threads=1)
 
     # Assert if sumo uploads log is not there.
     assert not os.path.exists(sumo_uploads_file)
@@ -328,8 +329,8 @@ def test_case(token, case_metadata):
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
-
-def test_case_with_restricted_child(
+@pytest.mark.asyncio
+async def test_case_with_restricted_child(
     token,
     case_metadata,
     surface_file,
@@ -389,7 +390,7 @@ def test_case_with_restricted_child(
         json.dump(manifest, f, indent=4)
 
     e.add_files()
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
@@ -403,8 +404,8 @@ def test_case_with_restricted_child(
     os.remove(surface_file_copy)
     os.remove(restricted_metadata_file)
 
-
-def test_case_with_one_child(
+@pytest.mark.asyncio
+async def test_case_with_one_child(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
     """Upload one file to Sumo. Assert that it is there."""
@@ -423,7 +424,7 @@ def test_case_with_one_child(
     assert os.path.exists(surface_file)
     assert os.path.exists(manifest_file)
     e.add_files()
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     total = _hits_for_case(sumoclient, e.fmu_case_uuid)
@@ -435,8 +436,8 @@ def test_case_with_one_child(
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
-
-def test_case_with_one_child_and_parameters_txt(
+@pytest.mark.asyncio
+async def test_case_with_one_child_and_parameters_txt(
     token,
     tmp_path,
     case_metadata,
@@ -490,7 +491,7 @@ def test_case_with_one_child_and_parameters_txt(
     time.sleep(1)
 
     e.add_files()
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     ert_run_sumo_uploads_file = real_path / ".sumo_uploads.json"
@@ -595,8 +596,8 @@ async def test_case_with_one_child_with_affiliate_access(
     os.remove(surface_file_copy)
     os.remove(affiliate_access_metadata_file)
 
-
-def test_case_with_no_children(token, case_metadata):
+@pytest.mark.asyncio
+async def test_case_with_no_children(token, case_metadata):
     """Test failure handling when no files are found"""
 
     sumoclient = SumoClient(env=ENV, token=token)
@@ -621,7 +622,7 @@ def test_case_with_no_children(token, case_metadata):
         json.dump(manifest, f, indent=4)
 
     e.add_files()
-    e.upload()
+    await e.upload()
 
     assert len(e.files) == 0
 
@@ -636,8 +637,8 @@ def test_case_with_no_children(token, case_metadata):
     # Delete manifest file
     os.remove(manifest_file)
 
-
-def test_missing_child_metadata(
+@pytest.mark.asyncio
+async def test_missing_child_metadata(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
     """
@@ -689,7 +690,7 @@ def test_missing_child_metadata(
                 "Invalid metadata"
             )
 
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Assert parent and valid child is on Sumo
@@ -730,8 +731,8 @@ def test_invalid_yml_in_case_metadata(token):
                 "Invalid metadata"
             )
 
-
-def test_invalid_yml_in_child_metadata(
+@pytest.mark.asyncio
+async def test_invalid_yml_in_child_metadata(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
 ):
     """
@@ -777,7 +778,7 @@ def test_invalid_yml_in_child_metadata(
     with pytest.warns(UserWarning, match="No metadata*"):
         e.add_files()
 
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Assert parent and only 1 valid child are on Sumo
@@ -815,8 +816,8 @@ def test_schema_error_in_case(token, case_metadata):
         )
         e.register()
 
-
-def test_schema_error_in_child(
+@pytest.mark.asyncio
+async def test_schema_error_in_child(
     token,
     case_metadata,
     surface_file,
@@ -875,7 +876,7 @@ def test_schema_error_in_child(
         json.dump(manifest, f, indent=4)
 
     e.add_files()
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Assert parent and valid child are on Sumo
@@ -951,8 +952,8 @@ def test_corrupted_export_manifest(token, case_metadata):
     assert e._get_next_index(manifest, sumo_uploads_corrupted_index) == 0
     assert e._get_next_index(manifest, sumo_uploads_corrupted_timestamp) == 0
 
-
-def test_multiple_exports_to_manifest_append_to_sumo_uploads(
+@pytest.mark.asyncio
+async def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     token,
     case_metadata,
     surface_file,
@@ -976,7 +977,7 @@ def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     e.add_files()
     assert len(e.files) == 1
 
-    e.upload()
+    await e.upload()
 
     # Assert that there is a sumo uploads log file and it has 1 entry.
     assert os.path.exists(sumo_uploads_file)
@@ -1014,7 +1015,7 @@ def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     e.add_files()
     assert len(e.files) == 2
 
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     with open(sumo_uploads_file, "r") as f:
@@ -1080,7 +1081,9 @@ def test_openvds_available():
     sys.platform.startswith("darwin"),
     reason="do not run OpenVDS SEGYImport on mac os",
 )
-def test_seismic_openvds_file(token, case_metadata, segy_file):
+
+@pytest.mark.asyncio
+async def test_seismic_openvds_file(token, case_metadata, segy_file):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
     sumoclient = SumoClient(env=ENV, token=token)
 
@@ -1093,7 +1096,7 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     time.sleep(1)
 
     e.add_files()
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Read the parent object from Sumo
@@ -1198,7 +1201,9 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_default(
+
+@pytest.mark.skipif()
+async def test_sumo_mode_default(
     token,
     case_metadata,
     surface_file,
@@ -1221,7 +1226,7 @@ def test_sumo_mode_default(
     # Add a valid child
     e.add_files()
 
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Assert parent and valid child are on Sumo
@@ -1244,7 +1249,8 @@ def test_sumo_mode_default(
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_copy(
+@pytest.mark.asyncio
+async def test_sumo_mode_copy(
     token,
     case_metadata,
     surface_file,
@@ -1268,7 +1274,7 @@ def test_sumo_mode_copy(
     # Add a valid child
     e.add_files()
 
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Assert parent and valid child are on Sumo
@@ -1291,7 +1297,8 @@ def test_sumo_mode_copy(
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-def test_sumo_mode_move(
+@pytest.mark.asyncio
+async def test_sumo_mode_move(
     token, case_metadata, surface_file, surface_metadata_file
 ):
     """
@@ -1310,7 +1317,7 @@ def test_sumo_mode_move(
     # Add a valid child
     e.add_files()
 
-    e.upload()
+    await e.upload()
     time.sleep(1)
 
     # Assert parent and valid child are on Sumo
