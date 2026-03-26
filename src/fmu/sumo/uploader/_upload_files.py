@@ -115,6 +115,7 @@ async def _upload_files(
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
     parameters_path="parameters.txt",
+    batch_size=10,
 ):
     """
     Upload realization and ensemble objects if they do not exist
@@ -164,15 +165,17 @@ async def _upload_files(
                     logger.info("Parameters file will be uploaded")
 
             break
+    all_results = []
+    for i in range(0, len(files), batch_size):
+        batch = files[i : i + batch_size]
+        tasks = [
+            _upload_file((file, sumoclient, sumo_parent_id, sumo_mode))
+            for file in batch
+        ]
+        results = await asyncio.gather(*tasks)
+        all_results.extend(results)
 
-    tasks = [
-        _upload_file((file, sumoclient, sumo_parent_id, sumo_mode))
-        for file in files
-    ]
-
-    results = await asyncio.gather(*tasks)
-
-    return results
+    return all_results
 
 
 async def _upload_file(args):
