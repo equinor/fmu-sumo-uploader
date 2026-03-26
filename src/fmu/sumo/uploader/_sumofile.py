@@ -17,8 +17,6 @@ from azure.storage.blob import BlobClient, ContentSettings
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 
-_path_re = re.compile("^/?([^/]+)/(.*)")
-
 _max_single_put_size = 4 * 1024 * 1024
 
 # pylint: disable=C0103 # allow non-snake case variable names
@@ -28,14 +26,12 @@ logger = get_uploader_logger()
 
 def _get_segyimport_cmdstr(blob_url, object_id, file_path, sample_unit):
     """Return the command string for running OpenVDS SEGYImport"""
-    try:
-        url = "azureSAS:" + blob_url["baseuri"][6:]
-        url_conn = "Suffix=?" + blob_url["auth"]
-    except KeyError:
-        url = (
-            "azureSAS" + blob_url.split(object_id)[0][5:]
-        )  # SEGYImport expects url to container
-        url_conn = "Suffix=?" + blob_url.split("?")[1]
+    if isinstance(blob_url, str):
+        baseuri, auth = blob_url.split("?")
+    else:
+        baseuri, auth = blob_url["baseuri"], blob_url["auth"]
+    url = re.sub("^http(:?s):", "azureSAS:", baseuri)
+    url_conn = "Suffix=?" + auth
 
     persistent_id = object_id
 
