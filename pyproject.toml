@@ -16,6 +16,7 @@ dependencies = [
   "httpx>=0.24.1",
   "OpenVDS; sys_platform != 'darwin'",
   "ert; sys_platform != 'win32'",
+  "retrying",
 ]
 
 [project.optional-dependencies]

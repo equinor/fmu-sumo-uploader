@@ -13,6 +13,7 @@ import time
 import warnings
 
 import httpx
+import retrying
 from azure.storage.blob import BlobClient, ContentSettings
 
 from fmu.sumo.uploader._logger import get_uploader_logger
@@ -95,7 +96,10 @@ class SumoFile:
         )
         return blobclient
 
-    def _upload_byte_string(self, blob_url):
+    @retrying.retry(
+        stop_max_attempt_number=6, wait_exponential_multiplier=1000
+    )
+    def upload_byte_string(self, blob_url):
         blobclient = self.get_blob_client(blob_url)
         content_settings = ContentSettings(
             content_type="application/octet-stream"
@@ -316,7 +320,7 @@ class SumoFile:
                     )
         else:  # non-seismic blob
             try:
-                response = self._upload_byte_string(blob_url)
+                response = self.upload_byte_string(blob_url)
                 upload_response.update(
                     {
                         "status_code": response.status_code,
