@@ -19,8 +19,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pre-commit"]
-test = ["pytest", "pytest-timeout", "fmu-sumo"]
+dev = ["ruff", "pytest", "pytest-asyncio", "pre-commit"]
+test = ["pytest", "pytest-asyncio","pytest-timeout", "fmu-sumo"]
 
 docs = [
   "sphinx==6.2.1",
