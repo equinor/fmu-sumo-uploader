@@ -3,9 +3,9 @@
 The function that uploads files.
 
 """
+
 import asyncio
 import json
-from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 
 import httpx
@@ -112,7 +112,6 @@ async def _upload_files(
     files,
     sumoclient,
     sumo_parent_id,
-    threads=4,
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
     parameters_path="parameters.txt",
@@ -181,7 +180,7 @@ async def _upload_file(args):
 
     file, sumoclient, sumo_parent_id, sumo_mode = args
 
-    result =await file.upload_to_sumo(
+    result = await file.upload_to_sumo(
         sumoclient=sumoclient,
         sumo_parent_id=sumo_parent_id,
         sumo_mode=sumo_mode,
@@ -196,7 +195,6 @@ async def upload_files(
     files: list,
     sumo_parent_id: str,
     sumoclient,
-    threads=4,
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
     parameters_path="parameters.txt",
@@ -214,7 +212,6 @@ async def upload_files(
         files,
         sumoclient,
         sumo_parent_id,
-        threads,
         sumo_mode,
         config_path,
         parameters_path,

@@ -256,6 +256,7 @@ async def test_sumo_uploads(
     path = f"/objects('{case.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
+
 @pytest.mark.asyncio
 async def test_upload_without_registration(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
@@ -328,6 +329,7 @@ def test_case(token, case_metadata):
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
 
 @pytest.mark.asyncio
 async def test_case_with_restricted_child(
@@ -404,6 +406,7 @@ async def test_case_with_restricted_child(
     os.remove(surface_file_copy)
     os.remove(restricted_metadata_file)
 
+
 @pytest.mark.asyncio
 async def test_case_with_one_child(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
@@ -435,6 +438,7 @@ async def test_case_with_one_child(
     logger.debug("Cleanup after test: delete case")
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
+
 
 @pytest.mark.asyncio
 async def test_case_with_one_child_and_parameters_txt(
@@ -523,6 +527,7 @@ async def test_case_with_one_child_and_parameters_txt(
     path = f"/objects('{e.sumo_parent_id}')"
     sumoclient.delete(path=path)
 
+
 @pytest.mark.asyncio
 async def test_case_with_one_child_with_affiliate_access(
     token,
@@ -596,6 +601,7 @@ async def test_case_with_one_child_with_affiliate_access(
     os.remove(surface_file_copy)
     os.remove(affiliate_access_metadata_file)
 
+
 @pytest.mark.asyncio
 async def test_case_with_no_children(token, case_metadata):
     """Test failure handling when no files are found"""
@@ -636,6 +642,7 @@ async def test_case_with_no_children(token, case_metadata):
 
     # Delete manifest file
     os.remove(manifest_file)
+
 
 @pytest.mark.asyncio
 async def test_missing_child_metadata(
@@ -731,6 +738,7 @@ def test_invalid_yml_in_case_metadata(token):
                 "Invalid metadata"
             )
 
+
 @pytest.mark.asyncio
 async def test_invalid_yml_in_child_metadata(
     token, case_metadata, surface_file, manifest_file, sumo_uploads_file
@@ -815,6 +823,7 @@ def test_schema_error_in_case(token, case_metadata):
             sumoclient=sumoclient,
         )
         e.register()
+
 
 @pytest.mark.asyncio
 async def test_schema_error_in_child(
@@ -952,6 +961,7 @@ def test_corrupted_export_manifest(token, case_metadata):
     assert e._get_next_index(manifest, sumo_uploads_corrupted_index) == 0
     assert e._get_next_index(manifest, sumo_uploads_corrupted_timestamp) == 0
 
+
 @pytest.mark.asyncio
 async def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     token,
@@ -1081,7 +1091,6 @@ def test_openvds_available():
     sys.platform.startswith("darwin"),
     reason="do not run OpenVDS SEGYImport on mac os",
 )
-
 @pytest.mark.asyncio
 async def test_seismic_openvds_file(token, case_metadata, segy_file):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
@@ -1201,7 +1210,6 @@ async def test_seismic_openvds_file(token, case_metadata, segy_file):
     sys.platform.startswith("win"),
     reason="do not run on windows due to file-path differences",
 )
-
 @pytest.mark.asyncio
 async def test_sumo_mode_default(
     token,
