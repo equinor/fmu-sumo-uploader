@@ -124,7 +124,6 @@ class SumoCase:
             files_to_upload,
             self._sumo_parent_id,
             sumoclient,
-            threads,
             self.sumo_mode,
             self.config_path,
             self.parameters_path,
