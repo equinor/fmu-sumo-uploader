@@ -96,7 +96,7 @@ class SumoCase:
         with open(uploads_path, "r", encoding="utf-8") as uploads_json:
             return json.load(uploads_json)
 
-    async def upload(self, threads=4):
+    async def upload(self):
         """Trigger upload of files.
 
         Upload all indexed files. Collect the files that have been uploaded OK, the

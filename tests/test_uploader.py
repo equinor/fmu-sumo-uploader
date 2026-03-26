@@ -276,7 +276,7 @@ async def test_upload_without_registration(
 
     case.add_files()
     with pytest.warns(UserWarning, match="Case is not registered"):
-        await case.upload(threads=1)
+        await case.upload()
 
     # Assert if sumo uploads log is not there.
     assert not os.path.exists(sumo_uploads_file)
