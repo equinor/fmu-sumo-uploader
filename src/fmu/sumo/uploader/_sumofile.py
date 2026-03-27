@@ -4,6 +4,7 @@ Base class for FileOnJob and FileOnDisk classes.
 
 """
 
+import asyncio
 import math
 import os
 import re
@@ -328,7 +329,11 @@ class SumoFile:
                     }
                 )
                 pass
-            except (httpx.TimeoutException, httpx.ConnectError) as err:
+            except (
+                httpx.TimeoutException,
+                httpx.ConnectError,
+                asyncio.TimeoutError,
+            ) as err:
                 err = err.with_traceback(None)
                 logger.warning(
                     f"Blob upload failed on timeout/connect {err} {type(err)}"
