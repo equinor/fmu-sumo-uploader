@@ -56,7 +56,10 @@ def get_parameter_file(parameters_path, config_path):
         return None
 
     exd = ExportData(
-        config=global_config, content="parameters", name="parameters"
+        config=global_config,
+        content="parameters",
+        name="parameters",
+        classification="internal",  # parameters readable by all roles
     )
     metadata = exd.generate_metadata(parameters)
 
