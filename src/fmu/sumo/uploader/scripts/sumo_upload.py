@@ -3,7 +3,6 @@
 """Upload data to Sumo from FMU."""
 
 import argparse
-import asyncio
 import logging
 import os
 import warnings
@@ -89,19 +88,17 @@ def main() -> None:
 
     _check_arguments(args)
 
-    asyncio.run(
-        sumo_upload_main(
-            casepath=args.casepath,
-            metadata_path=args.metadata_path,
-            config_path=args.config_path,
-            parameters_path=args.parameters_path,
-            sumo_mode=args.sumo_mode,
-            verbosity=logging.INFO,
-        )
+    sumo_upload_main(
+        casepath=args.casepath,
+        metadata_path=args.metadata_path,
+        config_path=args.config_path,
+        parameters_path=args.parameters_path,
+        sumo_mode=args.sumo_mode,
+        verbosity=logging.INFO,
     )
 
 
-async def sumo_upload_main(
+def sumo_upload_main(
     casepath: str,
     metadata_path: str,
     config_path: str = "fmuconfig/output/global_variables.yml",
@@ -153,7 +150,7 @@ async def sumo_upload_main(
 
         # upload the indexed files
         logger.info("Starting upload")
-        await e.upload()
+        e.upload()
         logger.info("Upload done")
 
     except Exception as err:

@@ -194,7 +194,7 @@ async def _upload_file(args):
     return result
 
 
-async def upload_files(
+def upload_files(
     files: list,
     sumo_parent_id: str,
     sumoclient,
@@ -211,13 +211,15 @@ async def upload_files(
     Upload is kept outside classes to use multithreading.
     """
 
-    results = await _upload_files(
-        files,
-        sumoclient,
-        sumo_parent_id,
-        sumo_mode,
-        config_path,
-        parameters_path,
+    results = asyncio.run(
+        _upload_files(
+            files,
+            sumoclient,
+            sumo_parent_id,
+            sumo_mode,
+            config_path,
+            parameters_path,
+        )
     )
 
     ok_uploads = []
