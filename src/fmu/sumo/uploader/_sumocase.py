@@ -96,7 +96,7 @@ class SumoCase:
         with open(uploads_path, "r", encoding="utf-8") as uploads_json:
             return json.load(uploads_json)
 
-    def upload(self, threads=4):
+    async def upload(self):
         """Trigger upload of files.
 
         Upload all indexed files. Collect the files that have been uploaded OK, the
@@ -120,11 +120,10 @@ class SumoCase:
 
         sumoclient = self.sumoclient.client_for_case(self._sumo_parent_id)
 
-        upload_results = upload_files(
+        upload_results = await upload_files(
             files_to_upload,
             self._sumo_parent_id,
             sumoclient,
-            threads,
             self.sumo_mode,
             self.config_path,
             self.parameters_path,

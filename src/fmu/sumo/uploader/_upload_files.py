@@ -4,8 +4,8 @@ The function that uploads files.
 
 """
 
+import asyncio
 import json
-from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 
 import httpx
@@ -108,14 +108,14 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
 
 
-def _upload_files(
+async def _upload_files(
     files,
     sumoclient,
     sumo_parent_id,
-    threads=4,
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
     parameters_path="parameters.txt",
+    batch_size=10,
 ):
     """
     Upload realization and ensemble objects if they do not exist
@@ -165,22 +165,25 @@ def _upload_files(
                     logger.info("Parameters file will be uploaded")
 
             break
+    all_results = []
+    for i in range(0, len(files), batch_size):
+        batch = files[i : i + batch_size]
+        tasks = [
+            _upload_file((file, sumoclient, sumo_parent_id, sumo_mode))
+            for file in batch
+        ]
+        results = await asyncio.gather(*tasks)
+        all_results.extend(results)
 
-    with ThreadPoolExecutor(threads) as executor:
-        results = executor.map(
-            _upload_file,
-            [(file, sumoclient, sumo_parent_id, sumo_mode) for file in files],
-        )
-
-    return results
+    return all_results
 
 
-def _upload_file(args):
+async def _upload_file(args):
     """Upload a file"""
 
     file, sumoclient, sumo_parent_id, sumo_mode = args
 
-    result = file.upload_to_sumo(
+    result = await file.upload_to_sumo(
         sumoclient=sumoclient,
         sumo_parent_id=sumo_parent_id,
         sumo_mode=sumo_mode,
@@ -191,11 +194,10 @@ def _upload_file(args):
     return result
 
 
-def upload_files(
+async def upload_files(
     files: list,
     sumo_parent_id: str,
     sumoclient,
-    threads=4,
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
     parameters_path="parameters.txt",
@@ -209,11 +211,10 @@ def upload_files(
     Upload is kept outside classes to use multithreading.
     """
 
-    results = _upload_files(
+    results = await _upload_files(
         files,
         sumoclient,
         sumo_parent_id,
-        threads,
         sumo_mode,
         config_path,
         parameters_path,

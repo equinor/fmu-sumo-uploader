@@ -3,6 +3,7 @@
 """Upload data to Sumo from FMU."""
 
 import argparse
+import asyncio
 import logging
 import os
 import warnings
@@ -88,21 +89,21 @@ def main() -> None:
 
     _check_arguments(args)
 
-    sumo_upload_main(
-        casepath=args.casepath,
-        metadata_path=args.metadata_path,
-        threads=args.threads,
-        config_path=args.config_path,
-        parameters_path=args.parameters_path,
-        sumo_mode=args.sumo_mode,
-        verbosity=logging.INFO,
+    asyncio.run(
+        sumo_upload_main(
+            casepath=args.casepath,
+            metadata_path=args.metadata_path,
+            config_path=args.config_path,
+            parameters_path=args.parameters_path,
+            sumo_mode=args.sumo_mode,
+            verbosity=logging.INFO,
+        )
     )
 
 
-def sumo_upload_main(
+async def sumo_upload_main(
     casepath: str,
     metadata_path: str,
-    threads: int,
     config_path: str = "fmuconfig/output/global_variables.yml",
     parameters_path: str = "parameters.txt",
     sumo_mode: str = "copy",
@@ -152,7 +153,7 @@ def sumo_upload_main(
 
         # upload the indexed files
         logger.info("Starting upload")
-        e.upload(threads=threads)
+        await e.upload()
         logger.info("Upload done")
 
     except Exception as err:
@@ -176,7 +177,7 @@ class SumoUpload(ErtScript):
     This is used for the ERT workflow context."""
 
     # pylint: disable=too-few-public-methods
-    def run(self, *args):
+    async def run(self, *args):
         # pylint: disable=no-self-use
         """Parse with a simplified command line parser, for ERT only,
         call sumo_upload_main()"""
@@ -187,10 +188,9 @@ class SumoUpload(ErtScript):
         parser = _get_parser()
         args = parser.parse_args(args)
         _check_arguments(args)
-        sumo_upload_main(
+        await sumo_upload_main(
             casepath=args.casepath,
             metadata_path=args.metadata_path,
-            threads=args.threads,
             config_path=args.config_path,
             parameters_path=args.parameters_path,
             sumo_mode=args.sumo_mode,
@@ -230,9 +230,6 @@ def _get_parser() -> argparse.ArgumentParser:
         default="copy",
     )
 
-    parser.add_argument(
-        "--threads", type=int, help="Set number of threads to use.", default=2
-    )
     parser.add_argument(
         "--metadata_path",
         type=str,

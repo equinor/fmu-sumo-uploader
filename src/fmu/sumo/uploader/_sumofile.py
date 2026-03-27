@@ -85,9 +85,9 @@ class SumoFile:
     def __init__(self):
         return
 
-    def _upload_metadata(self, sumoclient, sumo_parent_id):
+    async def _upload_metadata(self, sumoclient, sumo_parent_id):
         path = f"/objects('{sumo_parent_id}')"
-        response = sumoclient.post(path=path, json=self.metadata)
+        response = await sumoclient.post_async(path=path, json=self.metadata)
         return response
 
     def get_blob_client(self, blob_url):
@@ -120,13 +120,13 @@ class SumoFile:
         # ... which is not what the caller expects, so we return something reasonable.
         return httpx.Response(201)
 
-    def _delete_metadata(self, sumoclient, object_id):
+    async def _delete_metadata(self, sumoclient, object_id):
         logger.warning("Deleting metadata object: %s", object_id)
         path = f"/objects('{object_id}')"
-        response = sumoclient.delete(path=path)
+        response = await sumoclient.delete_async(path=path)
         return response
 
-    def upload_to_sumo(self, sumo_parent_id, sumoclient, sumo_mode):
+    async def upload_to_sumo(self, sumo_parent_id, sumoclient, sumo_mode):
         """Upload this file to Sumo"""
         # We need these included even if returning before blob upload
         result = {"blob_file_path": self.path, "blob_file_size": self._size}
@@ -174,7 +174,7 @@ class SumoFile:
                 return result
 
         try:
-            response = self._upload_metadata(
+            response = await self._upload_metadata(
                 sumoclient=sumoclient, sumo_parent_id=sumo_parent_id
             )
 
@@ -395,7 +395,7 @@ class SumoFile:
                 + self.sumo_object_id
             )
             result["status"] = "failed"
-            self._delete_metadata(sumoclient, self.sumo_object_id)
+            await self._delete_metadata(sumoclient, self.sumo_object_id)
         else:
             result["status"] = "ok"
             file_path = self.path
