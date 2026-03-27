@@ -38,3 +38,13 @@ The [Explorer](https://github.com/equinor/fmu-sumo) is also installed under `fmu
 ```
 pip install git+https://github.com/equinor/fmu-sumo.git --force-reinstall
 ```
+
+>[!NOTE]
+> In order to upload to an environment other than `prod`, just set
+> the environment variable `SUMO_ENV` accordingly: `setenv SUMO_ENV dev`
+> (csh) or `export SUMO_ENV=dev`(sh).
+
+> [!NOTE]
+> In order to use the development version of the metadata schema,
+> set the environment variable `DEV_SCHEMA`: `setenv DEV_SCHEMA 1` (csh)
+> or `export DEV_SCHEMA=1`(sh).
