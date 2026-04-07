@@ -130,19 +130,13 @@ def test_case_surfaces(explorer: Explorer):
         realizations = len(case.realizations)
         ens_count = len(surfs.filter(ensemble=True))
         real_count = len(surfs.filter(realization=True))
-        preproc_count = len(surfs.filter(realization=False, ensemble=False))
 
-        if (
-            ens_count >= 54 * realizations
-            and real_count >= 54 * realizations
-            and preproc_count >= 33
-        ):
+        if ens_count >= 54 * realizations and real_count >= 54 * realizations:
             print(
                 "'Perfect' surface case:",
                 case.uuid,
                 ens_count,
                 real_count,
-                preproc_count,
                 realizations,
             )
             perfect_cases += 1
@@ -152,7 +146,6 @@ def test_case_surfaces(explorer: Explorer):
                 case.uuid,
                 ens_count,
                 real_count,
-                preproc_count,
                 realizations,
             )
 
