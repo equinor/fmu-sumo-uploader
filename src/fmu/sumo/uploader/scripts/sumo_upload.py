@@ -8,6 +8,7 @@ import os
 import warnings
 from pathlib import Path
 
+import retrying
 from ert.plugins.plugin_manager import hook_implementation
 
 try:
@@ -98,6 +99,11 @@ def main() -> None:
     )
 
 
+@retrying.retry(stop_max_attempt_number=6, wait_exponential_multiplier=1000)
+def _get_sumo_client(env, client_id):
+    return SumoClient(env=env, client_id=client_id)
+
+
 def sumo_upload_main(
     casepath: str,
     metadata_path: str,
@@ -114,13 +120,14 @@ def sumo_upload_main(
     # Catch-all to ensure FMU workflow keeps running even if something happens.
     # This should be a temporary solution to be re-evaluated in the future.
 
+    sumoclient = None
     try:
         # establish the connection to Sumo
         env = os.environ.get("SUMO_ENV", "prod")
         if env not in ["preview", "dev", "test", "prod", "localhost"]:
             warnings.warn(f"Non-standard environment: {env}")
 
-        sumoclient = SumoClient(env=env, client_id=uploader_client_id)
+        sumoclient = _get_sumo_client(env, uploader_client_id)
         logger.info("Connection to Sumo established, env=%s", env)
 
         # initiate the case on disk object
@@ -156,15 +163,19 @@ def sumo_upload_main(
     except Exception as err:
         err = err.with_traceback(None)
         logger.warning(f"Problem related to Sumo upload: {err} {type(err)}")
-        _sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
-        _sumo_logger.propagate = False
-        _sumo_logger.warning(
-            "Problem related to Sumo upload for case: %s; %s %s",
-            case_metadata_path,
-            err,
-            type(err),
-            extra={"objectUuid": e.fmu_case_uuid},
-        )
+        if sumoclient is not None:
+            try:
+                _sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
+                _sumo_logger.propagate = False
+                _sumo_logger.warning(
+                    "Problem related to Sumo upload for case: %s; %s %s",
+                    case_metadata_path,
+                    err,
+                    type(err),
+                    extra={"objectUuid": e.fmu_case_uuid},
+                )
+            except Exception:
+                pass
         return
 
 
