@@ -185,7 +185,7 @@ class SumoUpload(ErtScript):
     This is used for the ERT workflow context."""
 
     # pylint: disable=too-few-public-methods
-    async def run(self, *args):
+    def run(self, *args):
         # pylint: disable=no-self-use
         """Parse with a simplified command line parser, for ERT only,
         call sumo_upload_main()"""
@@ -196,7 +196,7 @@ class SumoUpload(ErtScript):
         parser = _get_parser()
         args = parser.parse_args(args)
         _check_arguments(args)
-        await sumo_upload_main(
+        sumo_upload_main(
             casepath=args.casepath,
             metadata_path=args.metadata_path,
             config_path=args.config_path,
