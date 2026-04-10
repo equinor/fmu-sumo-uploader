@@ -7,12 +7,13 @@ The function that uploads files.
 import asyncio
 import json
 from copy import deepcopy
+from pathlib import Path
 
 import httpx
-import yaml
 
+from fmu.dataio import ExportData
+from fmu.dataio._global_config import load_global_config
 from fmu.dataio._utils import read_parameters_txt
-from fmu.dataio.dataio import ExportData
 from fmu.sumo.uploader._fileonjob import FileOnJob
 from fmu.sumo.uploader._logger import get_uploader_logger
 
@@ -37,8 +38,8 @@ def get_parameter_file(parameters_path, config_path):
     metadata = None
 
     try:
-        with open(config_path, "r", encoding="utf-8") as variables_yml:
-            global_config = yaml.safe_load(variables_yml)
+        # Prefers .fmu/ if it exists
+        global_config = load_global_config(Path(config_path))
     except FileNotFoundError:
         logger.warning(
             "No fmu config to read at %s, cannot generate metadata to upload parameters",
