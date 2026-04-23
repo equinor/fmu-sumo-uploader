@@ -12,7 +12,7 @@ dynamic = ["version"]
 dependencies = [
   "sumo-wrapper-python>=1.0.3",
   "azure.storage.blob",
-  "fmu-dataio",
+  "fmu-dataio>=2.26.0",
   "httpx>=0.24.1",
   "OpenVDS; sys_platform != 'darwin'",
   "ert; sys_platform != 'win32'",
@@ -60,7 +60,7 @@ extend-select = [
   "SIM", # Flake8-simplify
   "TC",  # Flake8-type-checking
   "TID", # Flake8-tidy-imports
-  "N",   # pep8-naming  
+  "N",   # pep8-naming
   "PD",  # Pandas
 ]
 
