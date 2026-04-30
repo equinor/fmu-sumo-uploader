@@ -14,7 +14,7 @@ import time
 import warnings
 
 import httpx
-import retrying
+import tenacity as tn
 from azure.storage.blob import BlobClient, ContentSettings
 
 from fmu.sumo.uploader._logger import get_uploader_logger
@@ -97,8 +97,9 @@ class SumoFile:
         )
         return blobclient
 
-    @retrying.retry(
-        stop_max_attempt_number=6, wait_exponential_multiplier=1000
+    @tn.retry(
+        stop=tn.stop_after_attempt(6),
+        wait=tn.wait_exponential(multiplier=1, exp_base=2),
     )
     def upload_byte_string(self, blob_url):
         blobclient = self.get_blob_client(blob_url)

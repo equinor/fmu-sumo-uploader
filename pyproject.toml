@@ -16,7 +16,7 @@ dependencies = [
   "httpx>=0.24.1",
   "OpenVDS; sys_platform != 'darwin'",
   "ert; sys_platform != 'win32'",
-  "retrying",
+  "tenacity",
 ]
 
 [project.optional-dependencies]
@@ -48,7 +48,6 @@ sumo_upload = "fmu.sumo.uploader.scripts.sumo_upload"
 
 [tool.ruff]
 exclude = [".env", ".git", ".github", ".venv", "venv"]
-
 line-length = 79
 
 [tool.ruff.lint]

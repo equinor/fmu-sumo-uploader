@@ -8,7 +8,7 @@ import os
 import warnings
 from pathlib import Path
 
-import retrying
+import tenacity as tn
 from ert.plugins.plugin_manager import hook_implementation
 
 try:
@@ -99,7 +99,10 @@ def main() -> None:
     )
 
 
-@retrying.retry(stop_max_attempt_number=6, wait_exponential_multiplier=1000)
+@tn.retry(
+    stop=tn.stop_after_attempt(6),
+    wait=tn.wait_exponential(multiplier=1, exp_base=2),
+)
 def _get_sumo_client(env, client_id):
     return SumoClient(env=env, client_id=client_id)
 
