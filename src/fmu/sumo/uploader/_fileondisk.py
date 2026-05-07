@@ -15,6 +15,11 @@ import yaml
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumofile import SumoFile, _path_to_yaml_path
 
+try:
+    from ._version import version
+except (ImportError, AttributeError):
+    version = "0.0.0"
+
 # pylint: disable=C0103 # allow non-snake case variable names
 
 logger = get_uploader_logger()
@@ -72,6 +77,7 @@ class FileOnDisk(SumoFile):
         self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
             digester.digest()
         ).decode("utf-8")
+        self.metadata["_sumo"]["uploader"] = version
 
     def __repr__(self):
         if not self.metadata:
