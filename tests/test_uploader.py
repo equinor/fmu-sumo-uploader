@@ -140,6 +140,18 @@ def fixture_sumo_uploads_file(manifest_file):
         os.remove(file)
 
 
+@pytest.fixture(autouse=True)
+def cleanup_test_files():
+    """Ensure test files are always cleaned up after every test."""
+    yield
+    sumo_uploads_path = CASEPATH / ".sumo_uploads.json"
+    export_manifest_path = CASEPATH / ".dataio_export_manifest.json"
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(sumo_uploads_path)
+    with contextlib.suppress(FileNotFoundError):
+        os.remove(export_manifest_path)
+
+
 @pytest.fixture(name="segy_file")
 def fixture_segy_file(monkeypatch):
     """Create metadata for seismic.segy"""
