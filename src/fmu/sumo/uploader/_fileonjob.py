@@ -12,6 +12,11 @@ import hashlib
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumofile import SumoFile
 
+try:
+    from ._version import version
+except (ImportError, AttributeError):
+    version = "0.0.0"
+
 # pylint: disable=C0103 # allow non-snake case variable names
 
 logger = get_uploader_logger()
@@ -39,3 +44,4 @@ class FileOnJob(SumoFile):
             digester.digest()
         ).decode("utf-8")
         self.metadata["file"]["checksum_md5"] = digester.hexdigest()
+        self.metadata["_sumo"]["uploader"] = version
