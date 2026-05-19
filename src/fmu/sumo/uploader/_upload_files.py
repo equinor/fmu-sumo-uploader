@@ -138,6 +138,7 @@ async def _upload_files(
     Create threads and call _upload in each thread
     """
     batch_size = _get_batch_size()
+    logger.info(f"batch_size={batch_size}")
 
     for file in files:
         if "fmu" in file.metadata and "realization" in file.metadata["fmu"]:
