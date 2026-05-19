@@ -6,6 +6,7 @@ The function that uploads files.
 
 import asyncio
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -112,6 +113,17 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
 
 
+def _get_batch_size():
+    nodename = os.uname().nodename
+    nameparts = nodename.split(".", 1)
+    domainname = nameparts[1] if len(nameparts) > 1 else ""
+    if domainname in ["rio.statoil.no", "stjohn.statoil.no"]:
+        batch_size = 1
+    else:
+        batch_size = 10
+    return batch_size
+
+
 async def _upload_files(
     files,
     sumoclient,
@@ -119,13 +131,13 @@ async def _upload_files(
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
     parameters_path="parameters.txt",
-    batch_size=10,
 ):
     """
     Upload realization and ensemble objects if they do not exist
     Upload parameters file if it does not exist or it has changed
     Create threads and call _upload in each thread
     """
+    batch_size = _get_batch_size()
 
     for file in files:
         if "fmu" in file.metadata and "realization" in file.metadata["fmu"]:
