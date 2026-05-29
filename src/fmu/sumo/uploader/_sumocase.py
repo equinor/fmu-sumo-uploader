@@ -12,6 +12,7 @@ import time
 import warnings
 
 from fmu.dataio.manifest import get_manifest_path
+import httpx
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
 
@@ -119,6 +120,17 @@ class SumoCase:
         logger.debug("files_to_upload: %s", files_to_upload)
 
         sumoclient = self.sumoclient.client_for_case(self._sumo_parent_id)
+
+        # TODO: Verify that case exists
+        try:
+            sumoclient.get(f"/objects/{self._sumo_parent_id}")
+        except Exception as err:
+            if (
+                isinstance(err, httpx.HTTPStatusError)
+                and err.response.status_code == 404
+            ):
+                print("Did not find the case on Sumo")
+            raise err
 
         upload_results = upload_files(
             files_to_upload,

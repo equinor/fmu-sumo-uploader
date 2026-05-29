@@ -166,10 +166,34 @@ async def _upload_files(
 
             paramfile = get_parameter_file(parameters_path, config_path)
             if paramfile is not None:
+                # TODO: This search seems to be what fails with 401 when case objects doesn´t exist
                 query = f"fmu.case.uuid:{sumo_parent_id} AND fmu.realization.uuid:{realization_id} AND data.content:parameters"
                 search_res = sumoclient.get(
                     "/search", {"$query": query, "$select": "_sumo.blob_md5"}
                 ).json()
+                # search_res = sumoclient.post(
+                #     "/search",
+                #     json={
+                #         "query": {
+                #             "bool": {
+                #                 "must": [
+                #                     {
+                #                         "term": {
+                #                             "fmu.case.uuid": sumo_parent_id
+                #                         }
+                #                     },
+                #                     {
+                #                         "term": {
+                #                             "fmu.realization.uuid": realization_id
+                #                         }
+                #                     },
+                #                     {"term": {"data.content": "parameters"}},
+                #                 ]
+                #             }
+                #         },
+                #         "_source": ["_sumo.blob_md5"],
+                #     },
+                # ).json()
                 # Check if the parameters file does not exist or has changed
                 if (
                     search_res["hits"]["total"]["value"] == 0
