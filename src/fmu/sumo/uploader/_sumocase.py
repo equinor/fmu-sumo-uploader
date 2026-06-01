@@ -12,7 +12,6 @@ import time
 import warnings
 
 from fmu.dataio.manifest import get_manifest_path
-import httpx
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
 
@@ -121,15 +120,13 @@ class SumoCase:
 
         sumoclient = self.sumoclient.client_for_case(self._sumo_parent_id)
 
-        # TODO: Verify that case exists
         try:
-            sumoclient.get(f"/objects/{self._sumo_parent_id}")
+            sumoclient.authenticate()
         except Exception as err:
-            if (
-                isinstance(err, httpx.HTTPStatusError)
-                and err.response.status_code == 404
-            ):
-                print("Did not find the case on Sumo")
+            logger.warning(
+                f"Failed to establish connection with Sumo for case {self._sumo_parent_id}. "
+                "This can happen if the case has not been registered in Sumo."
+            )
             raise err
 
         upload_results = upload_files(
