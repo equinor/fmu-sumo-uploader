@@ -6,7 +6,6 @@ pair (technically two files).
 
 """
 
-import base64
 import hashlib
 
 from fmu.sumo.uploader._logger import get_uploader_logger
@@ -35,13 +34,7 @@ class FileOnJob(SumoFile):
         self.sumo_object_id = None
         self.sumo_parent_id = None
 
-        self.metadata["_sumo"] = {}
-
         self.byte_string = byte_string
-        self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
         digester = hashlib.md5(self.byte_string)
-        self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
-            digester.digest()
-        ).decode("utf-8")
         self.metadata["file"]["checksum_md5"] = digester.hexdigest()
-        self.metadata["_sumo"]["uploader"] = version
+        self.metadata.setdefault("_sumo", {})["uploader"] = version

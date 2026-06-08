@@ -168,15 +168,16 @@ async def _upload_files(
             if paramfile is not None:
                 query = f"fmu.case.uuid:{sumo_parent_id} AND fmu.realization.uuid:{realization_id} AND data.content:parameters"
                 search_res = sumoclient.get(
-                    "/search", {"$query": query, "$select": "_sumo.blob_md5"}
+                    "/search",
+                    {"$query": query, "$select": "file.checksum_md5"},
                 ).json()
                 # Check if the parameters file does not exist or has changed
                 if (
                     search_res["hits"]["total"]["value"] == 0
-                    or search_res["hits"]["hits"][0]["_source"]["_sumo"][
-                        "blob_md5"
+                    or search_res["hits"]["hits"][0]["_source"]["file"][
+                        "checksum_md5"
                     ]
-                    != paramfile.metadata["_sumo"]["blob_md5"]
+                    != paramfile.metadata["file"]["checksum_md5"]
                 ):
                     files.append(paramfile)
                     logger.info("Parameters file will be uploaded")

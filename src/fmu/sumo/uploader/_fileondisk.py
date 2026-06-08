@@ -6,8 +6,6 @@ pair (technically two files).
 
 """
 
-import base64
-import hashlib
 import os
 
 import yaml
@@ -69,15 +67,8 @@ class FileOnDisk(SumoFile):
         self.sumo_object_id = None
         self.sumo_parent_id = None
 
-        self.metadata["_sumo"] = {}
-
         self.byte_string = file_to_byte_string(path)
-        self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
-        digester = hashlib.md5(self.byte_string)
-        self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
-            digester.digest()
-        ).decode("utf-8")
-        self.metadata["_sumo"]["uploader"] = version
+        self.metadata.setdefault("_sumo", {})["uploader"] = version
 
     def __repr__(self):
         if not self.metadata:
