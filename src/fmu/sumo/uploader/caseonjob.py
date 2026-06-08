@@ -16,7 +16,7 @@ class CaseOnJob(SumoCase):
     """Initialize the CaseOnJob object."""
 
     def __init__(
-        self, case_metadata: str, sumoclient, verbosity=logging.DEBUG
+        self, case_metadata: dict, sumoclient, verbosity=logging.DEBUG
     ):
         super().__init__(case_metadata, sumoclient)
         logger.setLevel(level=verbosity)

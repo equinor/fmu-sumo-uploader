@@ -1,0 +1,138 @@
+{
+  "masterdata": {
+    "smda": {
+      "country": [
+        {
+          "identifier": "DUMMY_COUNTRY_IDENTIFIER",
+          "uuid": "DUMMY_COUNTRY_UUID"
+        }
+      ],
+      "stratigraphic_column": {
+        "identifier": "DUMMY_STRATIGRAPHIC_COLUMN_IDENTIFIER",
+        "uuid": "DUMMY_STRATIGRAPHIC_COLUMN_UUID"
+      },
+      "field": [
+        {
+          "identifier": "DUMMY_FIELD_IDENTIFIER",
+          "uuid": "DUMMY_FIELD_UUID"
+        }
+      ],
+      "discovery": [
+        {
+          "uuid": "DUMMY_DISCOVERY_UUID_0",
+          "short_identifier": "DUMMY_DISCOVERY_SHORT_IDENTIFIER_0"
+        },
+        {
+          "uuid": "DUMMY_DISCOVERY_UUID_1",
+          "short_identifier": "DUMMY_DISCOVERY_SHORT_IDENTIFIER_1"
+        }
+      ],
+      "coordinate_system": {
+        "identifier": "DUMMY_COORDINATE_SYSTEM_IDENTIFIER",
+        "uuid": "DUMMY_COORDINATE_SYSTEM_UUID"
+      }
+    }
+  },
+  "tracklog": [
+    {
+      "datetime": "2020-01-01T15:00:00.000000",
+      "event": "created",
+      "user": {
+        "id": "DUMMY_USER_ID"
+      }
+    }
+  ],
+  "file": {
+    "absolute_path": "DUMMY_ABSOLUTE_PATH",
+    "size_bytes": 100000000,
+    "checksum_md5": "DUMMY_CHECKSUM_MD5",
+    "relative_path": "DUMMY_RELATIVE_PATH",
+    "runpath_relative_path": "DUMMY_RUNPATH_RELATIVE_PATH"
+  },
+  "access": {
+    "asset": {
+      "name": "DUMMY_ASSET_NAME"
+    },
+    "classification": "internal",
+    "ssdl": {
+      "access_level": "internal",
+      "rep_include": false
+    }
+  },
+  "_sumo": {
+    "parent_object": "DUMMY_PARENT_OBJECT_UUID",
+    "blob_size": 100000000,
+    "blob_md5": "DUMMY_BLOB_MD5",
+    "blob_name": "DUMMY_BLOB_NAME",
+    "updated_by": "DUMMY_UPDATED_BY",
+    "blob_url": "DUMMY_BLOB_URL",
+    "timestamp": "DUMMY_TIMESTAMP"
+  },
+  "$schema": "https://main-fmu-schemas-dev.radix.equinor.com/schemas/0.8.0/fmu_results.json",
+  "data": {
+    "depth_reference": "msl",
+    "is_prediction": true,
+    "format": "arrow",
+    "vertical_domain": "depth",
+    "content": "property",
+    "spec": {
+      "size": "DUMMY_SPEC_SIZE",
+      "columns": [
+        "DUMMY_COLUMN_0",
+        "DUMMY_COLUMN_1",
+        "DUMMY_COLUMN_2",
+        "DUMMY_COLUMN_3",
+        "DUMMY_COLUMN_4",
+        "DUMMY_COLUMN_5"
+      ]
+    },
+    "layout": "table",
+    "tagname": "grid",
+    "unit": "",
+    "table_index": [],
+    "undef_is_zero": false,
+    "name": "DUMMY_NAME",
+    "stratigraphic": false,
+    "is_observation": false
+  },
+  "display": {
+    "name": "DUMMY_DISPLAY_NAME"
+  },
+  "source": "fmu",
+  "version": "0.8.0",
+  "class": "table",
+  "fmu": {
+    "context": {
+      "stage": "realization"
+    },
+    "iteration": {
+      "name": "DUMMY_ITERATION_NAME",
+      "id": "DUMMY_ITERATION_ID",
+      "uuid": "DUMMY_ITERATION_UUID"
+    },
+    "model": {
+      "name": "DUMMY_MODEL_NAME",
+      "revision": "DUMMY_MODEL_REVISION"
+    },
+    "ensemble": {
+      "name": "DUMMY_ENSEMBLE_NAME",
+      "id": "DUMMY_ENSEMBLE_ID",
+      "uuid": "DUMMY_ENSEMBLE_UUID"
+    },
+    "case": {
+      "name": "DUMMY_CASE_NAME",
+      "uuid": "DUMMY_CASE_UUID",
+      "user": {
+        "id": "DUMMY_USER_ID"
+      }
+    },
+    "realization": {
+      "name": "DUMMY_REALIZATION_NAME",
+      "id": "DUMMY_REALIZATION_ID",
+      "uuid": "DUMMY_REALIZATION_UUID"
+    },
+    "entity": {
+      "uuid": "DUMMY_ENTITY_UUID"
+    }
+  }
+}
