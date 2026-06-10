@@ -1109,7 +1109,7 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     time.sleep(1)
 
     # Read the parent object from Sumo
-    query = f"_sumo.parent_object:{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
+    query = f"fmu.case.uuid:{e.fmu_case_uuid} AND NOT class:case AND NOT class:ensemble AND NOT class:realization"
     search_results = sumoclient.get(
         "/search", {"$query": query, "$size": 100}
     ).json()
