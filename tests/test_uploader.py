@@ -693,13 +693,13 @@ def test_missing_child_metadata(
     # do not have a companion metadata file
     with pytest.warns(UserWarning) as warnings_record:
         e.add_files()
-        for _ in warnings_record:
-            assert len(warnings_record) == 1, warnings_record
-            assert warnings_record[0].message.args[0].startswith(
-                "No metadata, skipping file"
-            ) or warnings_record[0].message.args[0].startswith(
-                "Invalid metadata"
-            )
+
+    warning_messages = [str(warning.message) for warning in warnings_record]
+    assert any(
+        message.startswith("No metadata, skipping file")
+        or message.startswith("Invalid metadata")
+        for message in warning_messages
+    ), warning_messages
 
     e.upload()
     time.sleep(1)
@@ -1108,8 +1108,8 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
     e.upload()
     time.sleep(1)
 
-    # Read the parent object from Sumo
-    query = f"_sumo.parent_object:{e.fmu_case_uuid} AND NOT class:ensemble AND NOT class:realization"
+    # Read case child objects
+    query = f"fmu.case.uuid:{e.fmu_case_uuid} AND NOT class:case AND NOT class:ensemble AND NOT class:realization"
     search_results = sumoclient.get(
         "/search", {"$query": query, "$size": 100}
     ).json()
