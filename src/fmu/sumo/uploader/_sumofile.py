@@ -269,6 +269,9 @@ class SumoFile:
             result["status"] = "rejected"
             return result
 
+        if is_seismic(self.metadata):
+            self.metadata["data"]["format"] = "openvds"  # we will upload seismic as openvds format, even if originally segy
+
         result["metadata_upload"] = await upload_metadata(
             sumoclient, sumo_parent_id, self.metadata
         )
