@@ -236,15 +236,15 @@ def _get_log_msg(sumo_parent_id, status):
     obj = {
         "upload_issue": {
             "case_uuid": str(sumo_parent_id),
-            "filepath": str(status.get("blob_file_path"))
-            }
+            "filepath": str(status.get("blob_file_path")),
         }
-    if ("blob_upload" in status):
+    }
+    if "blob_upload" in status:
         obj["upload_issue"]["blob"] = status["blob_upload"].errinfo()
-    elif ("metadata_upload" in status):
+    elif "metadata_upload" in status:
         obj["upload_issue"]["metadata"] = status["metadata_upload"].errinfo()
-    elif ("validation" in status):
-            obj["upload_issue"]["validation"] = status["validation"].errinfo()
+    elif "validation" in status:
+        obj["upload_issue"]["validation"] = status["validation"].errinfo()
     return json.dumps(obj)
 
 

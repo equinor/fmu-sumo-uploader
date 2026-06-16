@@ -11,7 +11,6 @@ import re
 import subprocess
 import sys
 import time
-import traceback
 import warnings
 
 import httpx
@@ -52,6 +51,7 @@ class ResponseInfo:
 
 def upload_response(func):
     """Decorator to wrap upload functions and return a consistent response format"""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         t0 = time.perf_counter()
@@ -60,14 +60,21 @@ def upload_response(func):
             return ResponseInfo(result, None, 0, t0, time.perf_counter())
         except (httpx.TimeoutException, httpx.ConnectError) as err:
             err = err.with_traceback(None)
-            logger.error(f"HTTP connect/timeout error during upload: {err} {type(err)}")
+            logger.error(
+                f"HTTP connect/timeout error during upload: {err} {type(err)}"
+            )
             return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
         except httpx.HTTPStatusError as err:
             err = err.with_traceback(None)
             logger.error("HTTP status error during upload: {err} {type(err)}")
-            return ResponseInfo(None, str(err), err.response.status_code, t0, time.perf_counter())
+            return ResponseInfo(
+                None,
+                str(err),
+                err.response.status_code,
+                t0,
+                time.perf_counter(),
+            )
         except Exception as err:
-            traceback.print_exc()
             err = err.with_traceback(None)
             logger.error(f"Error during upload: {err} {type(err)}")
             return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
@@ -266,7 +273,11 @@ class SumoFile:
             sumoclient, sumo_parent_id, self.metadata
         )
         if not result["metadata_upload"].ok():
-            result["status"] = "rejected" if result["metadata_upload"].statuscode in range(400, 500) else "failed"
+            result["status"] = (
+                "rejected"
+                if result["metadata_upload"].statuscode in range(400, 500)
+                else "failed"
+            )
             return result
 
         self.sumo_parent_id = sumo_parent_id
