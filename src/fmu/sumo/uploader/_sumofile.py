@@ -209,7 +209,7 @@ def get_segyimport_cmd(blob_url, object_id, file_path, sample_unit):
 
 
 @upload_response
-def upload_seismic_blob(object_id, path, metadata, blob_url):
+async def upload_seismic_blob(object_id, path, metadata, blob_url):
     if sys.platform.startswith("darwin"):
         # OpenVDS does not support Mac/darwin directly
         # Outer code expects and interprets http error codes
@@ -291,7 +291,7 @@ class SumoFile:
             logger.info(
                 "This is a seismic file, will attempt to upload as OpenVDS"
             )
-            result["blob_upload"] = upload_seismic_blob(
+            result["blob_upload"] = await upload_seismic_blob(
                 self.sumo_object_id, self.path, self.metadata, blob_url
             )
         else:  # non-seismic blob
