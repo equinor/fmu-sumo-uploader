@@ -292,7 +292,7 @@ class SumoFile:
                 "This is a seismic file, will attempt to upload as OpenVDS"
             )
             result["blob_upload"] = upload_seismic_blob(
-                self._sumo_object_id, self.path, self.metadata, blob_url
+                self.sumo_object_id, self.path, self.metadata, blob_url
             )
         else:  # non-seismic blob
             result["blob_upload"] = await upload_blob(
