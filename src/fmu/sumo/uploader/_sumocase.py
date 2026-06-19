@@ -129,12 +129,12 @@ class SumoCase:
             self.parameters_path,
         )
 
-        ok_uploads += upload_results.get("ok_uploads")
-        rejected_uploads += upload_results.get("rejected_uploads")
-        failed_uploads = upload_results.get("failed_uploads")
+        ok_uploads += upload_results.get("ok_uploads", [])
+        failed_uploads += upload_results.get("failed_uploads", [])
+        rejected_uploads += upload_results.get("rejected_uploads", [])
 
         if rejected_uploads and any(
-            res.get("metadata_upload_response_status_code") in [404]
+            res.get("metadata_upload").statuscode == 404
             for res in rejected_uploads
         ):
             warnings.warn("Case is not registered on Sumo")
@@ -162,17 +162,7 @@ class SumoCase:
             )
 
             for u in rejected_uploads[0:4]:
-                logger.info("\n" + "=" * 50)
-
-                logger.info(f"Filepath: {u.get('blob_file_path')}")
-                logger.info(
-                    f"Metadata: [{u.get('metadata_upload_response_status_code')}] "
-                    f"{u.get('metadata_upload_response_text')}"
-                )
-                logger.info(
-                    f"Blob: [{u.get('blob_upload_response_status_code')}] "
-                    f"{u.get('blob_upload_response_status_text')}"
-                )
+                logger.info(_get_log_msg(self.sumo_parent_id, u))
                 self._sumo_logger.error(
                     _get_log_msg(self.sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
@@ -184,17 +174,7 @@ class SumoCase:
             )
 
             for u in failed_uploads[0:4]:
-                logger.info("\n" + "=" * 50)
-
-                logger.info(f"Filepath: {u.get('blob_file_path')}")
-                logger.info(
-                    f"Metadata: [{u.get('metadata_upload_response_status_code')}] "
-                    f"{u.get('metadata_upload_response_text')}"
-                )
-                logger.info(
-                    f"Blob: [{u.get('blob_upload_response_status_code')}] "
-                    f"{u.get('blob_upload_response_status_text')}"
-                )
+                logger.info(_get_log_msg(self.sumo_parent_id, u))
                 self._sumo_logger.error(
                     _get_log_msg(self.sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
@@ -257,22 +237,14 @@ def _get_log_msg(sumo_parent_id, status):
         "upload_issue": {
             "case_uuid": str(sumo_parent_id),
             "filepath": str(status.get("blob_file_path")),
-            "metadata": {
-                "status_code": str(
-                    status.get("metadata_upload_response_status_code")
-                ),
-                "response_text": status.get("metadata_upload_response_text"),
-            },
-            "blob": {
-                "status_code": str(
-                    status.get("blob_upload_response_status_code")
-                ),
-                "response_text": (
-                    status.get("blob_upload_response_status_text")
-                ),
-            },
         }
     }
+    if "blob_upload" in status:
+        obj["upload_issue"]["blob"] = status["blob_upload"].errinfo()
+    elif "metadata_upload" in status:
+        obj["upload_issue"]["metadata"] = status["metadata_upload"].errinfo()
+    elif "validation" in status:
+        obj["upload_issue"]["validation"] = status["validation"].errinfo()
     return json.dumps(obj)
 
 
@@ -282,10 +254,8 @@ def _calculate_upload_stats(uploads):
     Given a list of results from file upload, calculate and return
     timing statistics for uploads."""
 
-    blob_upload_times = [u["blob_upload_time_elapsed"] for u in uploads]
-    metadata_upload_times = [
-        u["metadata_upload_time_elapsed"] for u in uploads
-    ]
+    blob_upload_times = [u["blob_upload"].elapsed for u in uploads]
+    metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
 
     def _get_stats(values):
         return {

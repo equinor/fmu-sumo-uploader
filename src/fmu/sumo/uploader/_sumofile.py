@@ -4,7 +4,7 @@ Base class for FileOnJob and FileOnDisk classes.
 
 """
 
-import asyncio
+import functools
 import math
 import os
 import re
@@ -26,17 +26,127 @@ _max_single_put_size = 4 * 1024 * 1024
 logger = get_uploader_logger()
 
 
-def _get_segyimport_cmdstr(blob_url, object_id, file_path, sample_unit):
-    """Return the command string for running OpenVDS SEGYImport"""
-    if isinstance(blob_url, str):
-        baseuri, auth = blob_url.split("?")
-    else:
-        baseuri, auth = blob_url["baseuri"], blob_url["auth"]
-    url = re.sub("^http(:?s):", "azureSAS:", baseuri)
-    url_conn = "Suffix=?" + auth
+def is_seismic(metadata):
+    return (
+        metadata.get("data")
+        and metadata.get("data").get("format")
+        and metadata.get("data").get("format") in ["openvds", "segy"]
+    )
 
-    persistent_id = object_id
 
+class ResponseInfo:
+    def __init__(self, result, err, statuscode, t0, t1):
+        self.result = result
+        self.err = err
+        self.statuscode = statuscode
+        self.t0 = t0
+        self.elapsed = t1 - t0
+
+    def ok(self):
+        return self.result is not None and self.err is None
+
+    def errinfo(self):
+        return {"err": self.err, "statuscode": self.statuscode}
+
+
+def upload_response(func):
+    """Decorator to wrap upload functions and return a consistent response format"""
+
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        t0 = time.perf_counter()
+        try:
+            result = await func(*args, **kwargs)
+            return ResponseInfo(result, None, 0, t0, time.perf_counter())
+        except (httpx.TimeoutException, httpx.ConnectError) as err:
+            err = err.with_traceback(None)
+            logger.error(
+                f"HTTP connect/timeout error during upload: {err} {type(err)}"
+            )
+            return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
+        except httpx.HTTPStatusError as err:
+            err = err.with_traceback(None)
+            logger.error("HTTP status error during upload: {err} {type(err)}")
+            return ResponseInfo(
+                None,
+                str(err),
+                err.response.status_code,
+                t0,
+                time.perf_counter(),
+            )
+        except Exception as err:
+            err = err.with_traceback(None)
+            logger.error(f"Error during upload: {err} {type(err)}")
+            return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
+
+    return wrapper
+
+
+@upload_response
+async def upload_metadata(sumoclient, sumo_parent_id, metadata):
+    """Upload metadata to Sumo and return a consistent response format"""
+    path = f"/objects('{sumo_parent_id}')"
+    response = await sumoclient.post_async(path=path, json=metadata)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_blob_client(blob_url):
+    blobclient = BlobClient.from_blob_url(
+        blob_url,
+        connection_timeout=600,
+        read_timeout=600,
+        max_single_put_size=_max_single_put_size,
+    )
+    return blobclient
+
+
+@upload_response
+@tn.retry(
+    stop=tn.stop_after_attempt(6),
+    wait=tn.wait_exponential(multiplier=1, exp_base=2),
+)
+async def upload_blob(blob_url, byte_string):
+    """Upload blob to Azure and return a consistent response format"""
+    blobclient = get_blob_client(blob_url)
+    content_settings = ContentSettings(content_type="application/octet-stream")
+    # set a timeout of 10s per megabyte, and at least 30s
+    timeout = max(math.ceil(len(byte_string) / (1024 * 1024) * 10), 30)
+    blobclient.upload_blob(
+        byte_string,
+        blob_type="BlockBlob",
+        length=len(byte_string),
+        overwrite=True,
+        content_settings=content_settings,
+        timeout=timeout,
+    )
+    # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.timezone.utc), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.timezone.utc), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
+    # ... which is not what the caller expects, so we return something reasonable.
+    return True
+
+
+@upload_response
+async def validate(parent_id, metadata):
+    """Validate metadata and return a consistent response format"""
+    if not parent_id:
+        raise Exception("Validation failed: Missing case/sumo_parent_id")
+    # ELSE
+    file_case_uuid = metadata["fmu"]["case"]["uuid"]
+    if parent_id != file_case_uuid:
+        raise Exception(
+            "Validation failed: File case.uuid does not match parent case.uuid"
+        )
+    # ELSE
+    if is_seismic(metadata) and "vertical_domain" not in metadata["data"]:
+        raise Exception(
+            "Validation failed: This is a seismic data object but it does not have a value for data.vertical_domain."
+        )
+    # ELSE
+    return True
+
+
+@functools.cache
+def get_path_to_segyimport():
     segy_command = "SEGYImport"
     if sys.platform.startswith("win"):
         segy_command = segy_command + ".exe"
@@ -49,17 +159,30 @@ def _get_segyimport_cmdstr(blob_url, object_id, file_path, sample_unit):
         "/home/vscode/.local/bin",
         "/usr/local/bin",
     ]
-    path_to_executable = None
     for loc in locations:
         path = os.path.join(loc, segy_command)
         if os.path.isfile(path):
-            path_to_executable = path
+            _path_to_segyimport = path
             break
-    if path_to_executable is None:
-        logger.error("Could not find OpenVDS executables folder location")
-    logger.info("Path to OpenVDS executable: " + path_to_executable)
+    if _path_to_segyimport is None:
+        raise Exception("Could not find OpenVDS executables folder location")
+    return _path_to_segyimport
 
-    cmdstr = [
+
+def get_segyimport_cmd(blob_url, object_id, file_path, sample_unit):
+    """Return the command string for running OpenVDS SEGYImport"""
+    if isinstance(blob_url, str):
+        baseuri, auth = blob_url.split("?")
+    else:
+        baseuri, auth = blob_url["baseuri"], blob_url["auth"]
+    url = re.sub("^http(:?s):", "azureSAS:", baseuri)
+    url_conn = "Suffix=?" + auth
+
+    persistent_id = object_id
+
+    path_to_executable = get_path_to_segyimport()
+
+    cmd = [
         path_to_executable,
         "--compression-method",
         "RLE",
@@ -76,51 +199,53 @@ def _get_segyimport_cmdstr(blob_url, object_id, file_path, sample_unit):
         file_path,
     ]
 
-    return cmdstr
+    return cmd
+
+
+@upload_response
+async def upload_seismic_blob(object_id, path, metadata, blob_url):
+    if sys.platform.startswith("darwin"):
+        # OpenVDS does not support Mac/darwin directly
+        # Outer code expects and interprets http error codes
+        raise Exception(
+            "Can not perform SEGY upload since OpenVDS does not support Mac"
+        )
+    # ELSE - attempt to upload as OpenVDS SEGYImport command
+    if metadata["data"]["vertical_domain"] == "depth":
+        sample_unit = "m"
+    else:
+        sample_unit = "ms"  # aka time domain
+
+    cmd_str = get_segyimport_cmd(blob_url, object_id, path, sample_unit)
+    try:
+        cmd_result = subprocess.run(
+            cmd_str, capture_output=True, text=True, shell=False
+        )
+        if cmd_result.returncode == 0:
+            return True
+        else:
+            # Outer code expects and interprets http error codes
+            logger.warning(
+                "Seismic upload failed with returncode",
+                cmd_result.returncode,
+            )
+            raise Exception(
+                "FAILED SEGY upload as OpenVDS command " + cmd_result.stderr
+            )
+    except Exception as err:
+        err = err.with_traceback(None)
+        logger.warning(f"Seismic upload exception {err} {type(err)}")
+        raise Exception(
+            "FAILED SEGY upload as OpenVDS exception "
+            + str(err)
+            + " "
+            + str(type(err))
+        )
 
 
 class SumoFile:
     def __init__(self):
         return
-
-    async def _upload_metadata(self, sumoclient, sumo_parent_id):
-        path = f"/objects('{sumo_parent_id}')"
-        response = await sumoclient.post_async(path=path, json=self.metadata)
-        return response
-
-    def get_blob_client(self, blob_url):
-        blobclient = BlobClient.from_blob_url(
-            blob_url,
-            connection_timeout=600,
-            read_timeout=600,
-            max_single_put_size=_max_single_put_size,
-        )
-        return blobclient
-
-    @tn.retry(
-        stop=tn.stop_after_attempt(6),
-        wait=tn.wait_exponential(multiplier=1, exp_base=2),
-    )
-    def upload_byte_string(self, blob_url):
-        blobclient = self.get_blob_client(blob_url)
-        content_settings = ContentSettings(
-            content_type="application/octet-stream"
-        )
-        # set a timeout of 10s per megabyte, and at least 30s
-        timeout = max(
-            math.ceil(len(self.byte_string) / (1024 * 1024) * 10), 30
-        )
-        blobclient.upload_blob(
-            self.byte_string,
-            blob_type="BlockBlob",
-            length=len(self.byte_string),
-            overwrite=True,
-            content_settings=content_settings,
-            timeout=timeout,
-        )
-        # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.timezone.utc), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.timezone.utc), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
-        # ... which is not what the caller expects, so we return something reasonable.
-        return httpx.Response(201)
 
     async def _delete_metadata(self, sumoclient, object_id):
         logger.warning("Deleting metadata object: %s", object_id)
@@ -133,269 +258,47 @@ class SumoFile:
         # We need these included even if returning before blob upload
         result = {"blob_file_path": self.path, "blob_file_size": self._size}
 
-        if not sumo_parent_id:
-            err_msg = f"File upload cannot be attempted, missing case/sumo_parent_id. Got: {sumo_parent_id}"
-            result.update(
-                {
-                    "status": "rejected",
-                    "metadata_upload_response_status_code": 500,
-                    "metadata_upload_response_text": err_msg,
-                }
-            )
+        result["validation"] = await validate(sumo_parent_id, self.metadata)
+        if not result["validation"].ok():
+            result["status"] = "rejected"
             return result
 
-        file_case_uuid = self.metadata["fmu"]["case"]["uuid"]
-        if sumo_parent_id != file_case_uuid:
-            err_msg = f"File upload cannot be attempted, file case.uuid {file_case_uuid} does not match parent case.uuid {sumo_parent_id}"
-            result.update(
-                {
-                    "status": "rejected",
-                    "metadata_upload_response_status_code": 500,
-                    "metadata_upload_response_text": err_msg,
-                }
-            )
-            return result
-
-        _t0_metadata = time.perf_counter()
-
-        # Uploader converts segy-files to OpenVDS:
-        if (
-            self.metadata.get("data")
-            and self.metadata.get("data").get("format")
-            and self.metadata.get("data").get("format") in ["openvds", "segy"]
-        ):
-            self.metadata["data"]["format"] = "openvds"
-            if "vertical_domain" not in self.metadata["data"]:
-                result.update(
-                    {
-                        "status": "rejected",
-                        "metadata_upload_response_status_code": 500,
-                        "metadata_upload_response_text": "File upload cannot be attempted; this is a seismic data object but it does not have a value for data.vertical_domain.",
-                    }
-                )
-                return result
-
-        try:
-            response = await self._upload_metadata(
-                sumoclient=sumoclient, sumo_parent_id=sumo_parent_id
+        if is_seismic(self.metadata):
+            self.metadata["data"]["format"] = (
+                "openvds"  # we will upload seismic as openvds format, even if originally segy
             )
 
-            _t1_metadata = time.perf_counter()
-
-            result.update(
-                {
-                    "metadata_upload_response_status_code": response.status_code,
-                    "metadata_upload_response_text": response.text,
-                    "metadata_upload_time_start": _t0_metadata,
-                    "metadata_upload_time_end": _t1_metadata,
-                    "metadata_upload_time_elapsed": _t1_metadata
-                    - _t0_metadata,
-                    "metadata_file_path": self.metadata_path,
-                    "metadata_file_size": self._size,
-                }
-            )
-            pass
-        except (httpx.TimeoutException, httpx.ConnectError) as err:
-            err = err.with_traceback(None)
-            logger.warning(
-                f"Metadata upload timeout/connection exception {err} {type(err)}"
-            )
-            result.update(
-                {
-                    "status": "failed",
-                    "metadata_upload_response_status_code": 500,
-                    "metadata_upload_response_text": str(err),
-                }
-            )
-            pass
-        except httpx.HTTPStatusError as err:
-            err = err.with_traceback(None)
-            error_string = (
-                str(err.response.status_code)
-                + err.response.reason_phrase
-                + err.response.text
-            )
-            logger.warning(
-                f"Metadata upload status error exception: {error_string}"
-            )
-            result.update(
-                {
-                    "status": "rejected",
-                    "metadata_upload_response_status_code": err.response.status_code,
-                    "metadata_upload_response_text": error_string[
-                        : min(250, len(error_string))
-                    ],
-                }
-            )
-            pass
-        except Exception as err:
-            err = err.with_traceback(None)
-            logger.warning(f"Metadata upload exception {err} {type(err)}")
-            result.update(
-                {
-                    "status": "failed",
-                    "metadata_upload_response_status_code": 500,
-                    "metadata_upload_response_text": str(err),
-                }
-            )
-            pass
-
-        if result["metadata_upload_response_status_code"] not in [200, 201]:
-            logger.warning(
-                "Metadata upload unsuccessful, returning "
-                + str(result["metadata_upload_response_status_code"])
+        result["metadata_upload"] = await upload_metadata(
+            sumoclient, sumo_parent_id, self.metadata
+        )
+        if not result["metadata_upload"].ok():
+            result["status"] = (
+                "rejected"
+                if result["metadata_upload"].statuscode in range(400, 500)
+                else "failed"
             )
             return result
 
         self.sumo_parent_id = sumo_parent_id
-        self.sumo_object_id = response.json().get("objectid")
+        self.sumo_object_id = result["metadata_upload"].result.get("objectid")
 
-        blob_url = response.json().get("blob_url")
+        blob_url = result["metadata_upload"].result.get("blob_url")
 
         # UPLOAD BLOB
 
-        _t0_blob = time.perf_counter()
-        upload_response = {}
-
-        if (
-            self.metadata.get("data")
-            and self.metadata.get("data").get("format")
-            and self.metadata.get("data").get("format") in ["openvds", "segy"]
-        ):
-            if sys.platform.startswith("darwin"):
-                # OpenVDS does not support Mac/darwin directly
-                # Outer code expects and interprets http error codes
-                upload_response.update(
-                    {
-                        "status_code": 418,
-                        "text": "Can not perform SEGY upload since OpenVDS does not support Mac",
-                    }
-                )
-            else:
-                if self.metadata["data"]["vertical_domain"] == "depth":
-                    sample_unit = "m"
-                else:
-                    sample_unit = "ms"  # aka time domain
-
-                cmd_str = _get_segyimport_cmdstr(
-                    blob_url, self.sumo_object_id, self.path, sample_unit
-                )
-                try:
-                    cmd_result = subprocess.run(
-                        cmd_str, capture_output=True, text=True, shell=False
-                    )
-                    if cmd_result.returncode == 0:
-                        upload_response.update(
-                            {
-                                "status_code": 200,
-                                "text": "SEGY uploaded as OpenVDS.",
-                            }
-                        )
-                    else:
-                        # Outer code expects and interprets http error codes
-                        logger.warning(
-                            "Seismic upload failed with returncode",
-                            cmd_result.returncode,
-                        )
-                        upload_response.update(
-                            {
-                                "status_code": 418,
-                                "text": "FAILED SEGY upload as OpenVDS command "
-                                + cmd_result.stderr,
-                            }
-                        )
-                        pass
-                    pass
-                except Exception as err:
-                    err = err.with_traceback(None)
-                    logger.warning(
-                        f"Seismic upload exception {err} {type(err)}"
-                    )
-                    upload_response.update(
-                        {
-                            "status_code": 418,
-                            "text": "FAILED SEGY upload as OpenVDS "
-                            + str(err)
-                            + " "
-                            + str(type(err)),
-                        }
-                    )
+        if is_seismic(self.metadata):
+            logger.info(
+                "This is a seismic file, will attempt to upload as OpenVDS"
+            )
+            result["blob_upload"] = await upload_seismic_blob(
+                self.sumo_object_id, self.path, self.metadata, blob_url
+            )
         else:  # non-seismic blob
-            try:
-                response = self.upload_byte_string(blob_url)
-                upload_response.update(
-                    {
-                        "status_code": response.status_code,
-                        "text": response.text,
-                    }
-                )
-                pass
-            except (
-                httpx.TimeoutException,
-                httpx.ConnectError,
-                asyncio.TimeoutError,
-            ) as err:
-                err = err.with_traceback(None)
-                logger.warning(
-                    f"Blob upload failed on timeout/connect {err} {type(err)}"
-                )
-                upload_response.update(
-                    {
-                        "status": "failed",
-                        "status_code": 500,
-                        "text": str(err),
-                        "blob_upload_response_status_code": 500,
-                        "blob_upload_response_text": str(err),
-                    }
-                )
-                pass
-            except httpx.HTTPStatusError as err:
-                err = err.with_traceback(None)
-                logger.warning(
-                    f"Blob upload failed on status {err} {type(err)} {err.response.text}"
-                )
-                upload_response.update(
-                    {
-                        "status": "failed",
-                        "status_code": err.response.status_code,
-                        "text": str(err),
-                        "blob_upload_response_status_code": err.response.status_code,
-                        "blob_upload_response_text": err.response.reason_phrase,
-                    }
-                )
-                pass
-            except Exception as err:
-                err = err.with_traceback(None)
-                logger.warning(
-                    f"Blob upload failed on exception {err} {type(err)}"
-                )
-                upload_response.update(
-                    {
-                        "status": "failed",
-                        "status_code": 500,
-                        "text": str(err),
-                        "blob_upload_response_status_code": 500,
-                        "blob_upload_response_text": str(err),
-                    }
-                )
+            result["blob_upload"] = await upload_blob(
+                blob_url, self.byte_string
+            )
 
-        _t1_blob = time.perf_counter()
-
-        result.update(
-            {
-                "blob_upload_response_status_code": upload_response[
-                    "status_code"
-                ],
-                "blob_upload_response_status_text": upload_response["text"],
-                "blob_upload_time_start": _t0_blob,
-                "blob_upload_time_end": _t1_blob,
-                "blob_upload_time_elapsed": _t1_blob - _t0_blob,
-            }
-        )
-
-        if "status_code" not in upload_response or upload_response[
-            "status_code"
-        ] not in [200, 201]:
+        if not result["blob_upload"].ok():
             logger.warning(
                 "Deleting metadata since data-upload failed on object uuid "
                 + self.sumo_object_id
@@ -404,9 +307,9 @@ class SumoFile:
             await self._delete_metadata(sumoclient, self.sumo_object_id)
         else:
             result["status"] = "ok"
-            file_path = self.path
-            metadatafile_path = _path_to_yaml_path(file_path)
             if sumo_mode.lower() == "move":
+                file_path = self.path
+                metadatafile_path = _path_to_yaml_path(file_path)
                 try:
                     if os.path.exists(file_path):
                         os.remove(file_path)
