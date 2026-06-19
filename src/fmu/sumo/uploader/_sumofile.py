@@ -145,14 +145,8 @@ async def validate(parent_id, metadata):
     return True
 
 
-_path_to_segyimport = None
-
-
+@functools.cache
 def get_path_to_segyimport():
-    global _path_to_segyimport
-    if _path_to_segyimport is not None:
-        return _path_to_segyimport
-
     segy_command = "SEGYImport"
     if sys.platform.startswith("win"):
         segy_command = segy_command + ".exe"
