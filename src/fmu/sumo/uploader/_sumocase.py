@@ -169,28 +169,20 @@ class SumoCase:
         logger.info(f"Sumo mode: {str(self.sumo_mode)}")
 
         details = {
-            "total_files_count": str(len(self.files)),
-            "ok_files": str(len(ok_uploads)),
-            "failed_files": str(len(failed_uploads)),
-            "rejected_files": str(len(rejected_uploads)),
-            "wall_time_seconds": str(_dt),
+            "case_uuid": self._fmu_case_uuid,
+            "total_files_count": len(self.files),
+            "ok_files": len(ok_uploads),
+            "failed_files": len(failed_uploads),
+            "rejected_files": len(rejected_uploads),
+            "wall_time_seconds": _dt,
             "upload_statistics": upload_statistics,
             "sumo_mode": self.sumo_mode,
-            "case_uuid": _get_field_from_metadata(
-                self.case_metadata, "fmu.case.uuid"
-            ),
-            "ensemble_name": _get_field_from_metadata(
-                self.case_metadata, "fmu.ensemble.name"
-            ),
-            "realization_id": _get_field_from_metadata(
-                self.case_metadata, "fmu.realization.id"
-            ),
         }
 
         self._sumo_logger.info(
-            "Upload completed for case with sumo_parent_id: %s",
-            self._sumo_parent_id,
-            extra={"objectUuid": self._sumo_parent_id, "details": details},
+            "Upload completed for case with fmu_case_uuid: %s",
+            self._fmu_case_uuid,
+            extra={"objectUuid": self._fmu_case_uuid, "details": details},
         )
 
         return ok_uploads

@@ -18,6 +18,8 @@ from fmu.dataio.manifest import get_manifest_path
 from sumo.wrapper import SumoClient
 
 from fmu.sumo import uploader
+from fmu.sumo.uploader._sumocase import _get_field_from_metadata
+from fmu.sumo.uploader.caseondisk import _load_case_metadata
 
 if not sys.platform.startswith("darwin"):
     import openvds
@@ -29,9 +31,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level="DEBUG")
 
 
-@pytest.fixture(name="case_metadata")
-def fixture_case_metadata():
-    """Read global variables and create case metadata"""
+@pytest.fixture(name="case_metadata_path")
+def fixture_case_metadata_path():
+    """Read global variables and create case metadata and return the path"""
 
     global_variables_file = "tests/data/global_variables.yml"
     with open(global_variables_file) as f:
@@ -60,6 +62,12 @@ def fixture_case_metadata():
 
     with contextlib.suppress(FileNotFoundError):
         os.remove(case_metadata_file)
+
+
+@pytest.fixture(name="case_metadata")
+def fixture_case_metadata(case_metadata_path):
+    """Get case metadata as a dictionary"""
+    return _load_case_metadata(Path(case_metadata_path))
 
 
 @pytest.fixture(name="surface_file")
@@ -194,24 +202,37 @@ def _hits_for_case(sumoclient, case_uuid):
 ### TESTS ###
 
 
-def test_initialization(token, case_metadata):
+def test_get_field_from_metadata(case_metadata):
+    asset_name = _get_field_from_metadata(case_metadata, "access.asset.name")
+    assert asset_name == "Drogon"
+
+
+def test_get_field_from_metadata_invalid_field(case_metadata):
+    with pytest.warns(UserWarning, match="Invalid metadata"):
+        non_existent_field = _get_field_from_metadata(
+            case_metadata, "non.existing.field"
+        )
+    assert non_existent_field is None
+
+
+def test_initialization(token, case_metadata_path):
     """Assert that the CaseOnDisk object can be initialized"""
     sumoclient = SumoClient(env=ENV, token=token)
 
     uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
 
 
 # surface_file must be included for the manifest file to be created
-def test_manifest(token, case_metadata, surface_file, manifest_file):
+def test_manifest(token, case_metadata_path, surface_file, manifest_file):
     """Assert that manifest exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
 
     uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
         verbosity="DEBUG",
@@ -228,13 +249,13 @@ def test_manifest(token, case_metadata, surface_file, manifest_file):
 
 # surface_file must be included for the manifest file to be created
 def test_sumo_uploads(
-    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+    token, case_metadata_path, surface_file, manifest_file, sumo_uploads_file
 ):
     """Assert that sumo uploads log exists after exporting data"""
     sumoclient = SumoClient(env=ENV, token=token)
 
     case = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
         verbosity="DEBUG",
@@ -269,13 +290,13 @@ def test_sumo_uploads(
 
 
 def test_upload_without_registration(
-    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+    token, case_metadata_path, surface_file, manifest_file, sumo_uploads_file
 ):
     """Assert that attempting to upload to a non-existing/un-registered case gives warning."""
     sumoclient = SumoClient(env=ENV, token=token)
 
     case = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
         verbosity="DEBUG",
@@ -292,21 +313,21 @@ def test_upload_without_registration(
     assert not os.path.exists(sumo_uploads_file)
 
 
-def test_validate_schema(token, case_metadata):
+def test_validate_schema(token, case_metadata_path):
     """Assert when schema is not valid"""
     sumoclient = SumoClient(env=ENV, token=token)
-    with open(case_metadata, "r") as f:
+    with open(case_metadata_path, "r") as f:
         parsed_yaml = yaml.safe_load(f)
     response = sumoclient.post(path="/json-validate", json=parsed_yaml).json()
     assert response.get("valid") is True
 
 
-def test_case(token, case_metadata):
+def test_case(token, case_metadata_path):
     """Assert that after uploading case to Sumo, the case is there and is the only one."""
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -343,7 +364,7 @@ def test_case(token, case_metadata):
 
 def test_case_with_restricted_child(
     token,
-    case_metadata,
+    case_metadata_path,
     surface_file,
     surface_metadata_file,
     manifest_file,
@@ -354,7 +375,7 @@ def test_case_with_restricted_child(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -417,14 +438,14 @@ def test_case_with_restricted_child(
 
 
 def test_case_with_one_child(
-    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+    token, case_metadata_path, surface_file, manifest_file, sumo_uploads_file
 ):
     """Upload one file to Sumo. Assert that it is there."""
 
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
         config_path="tests/data/global_variables.yml",
@@ -451,7 +472,7 @@ def test_case_with_one_child(
 def test_case_with_one_child_and_parameters_txt(
     token,
     tmp_path,
-    case_metadata,
+    case_metadata_path,
     monkeypatch,
     surface_file,
     surface_metadata_file,
@@ -467,7 +488,9 @@ def test_case_with_one_child_and_parameters_txt(
     case_meta_folder = case_path / "share/metadata"
     case_meta_folder.mkdir(parents=True)
     case_meta_path = case_meta_folder / "fmu_case.yml"
-    case_meta_path.write_text(Path(case_metadata).read_text(encoding="utf-8"))
+    case_meta_path.write_text(
+        Path(case_metadata_path).read_text(encoding="utf-8")
+    )
 
     real_path = case_path / "realization-0/iter-0"
     share_path = real_path / "share/results/surface/"
@@ -537,7 +560,7 @@ def test_case_with_one_child_and_parameters_txt(
 
 def test_case_with_one_child_with_affiliate_access(
     token,
-    case_metadata,
+    case_metadata_path,
     surface_file,
     surface_metadata_file,
     manifest_file,
@@ -549,7 +572,7 @@ def test_case_with_one_child_with_affiliate_access(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -608,13 +631,13 @@ def test_case_with_one_child_with_affiliate_access(
     os.remove(affiliate_access_metadata_file)
 
 
-def test_case_with_no_children(token, case_metadata):
+def test_case_with_no_children(token, case_metadata_path):
     """Test failure handling when no files are found"""
 
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -650,7 +673,7 @@ def test_case_with_no_children(token, case_metadata):
 
 
 def test_missing_child_metadata(
-    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+    token, case_metadata_path, surface_file, manifest_file, sumo_uploads_file
 ):
     """
     Try to upload files where one does not have metadata. Assert that warning is given
@@ -659,7 +682,7 @@ def test_missing_child_metadata(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -744,7 +767,7 @@ def test_invalid_yml_in_case_metadata(token):
 
 
 def test_invalid_yml_in_child_metadata(
-    token, case_metadata, surface_file, manifest_file, sumo_uploads_file
+    token, case_metadata_path, surface_file, manifest_file, sumo_uploads_file
 ):
     """
     Try to upload child with invalid yml in its metadata file.
@@ -752,7 +775,7 @@ def test_invalid_yml_in_child_metadata(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -805,23 +828,23 @@ def test_invalid_yml_in_child_metadata(
     os.remove(invalid_metadata_file)
 
 
-def test_schema_error_in_case(token, case_metadata):
+def test_schema_error_in_case(token, case_metadata_path):
     """
     Try to upload files where case have metadata with error.
     """
     sumoclient = SumoClient(env=ENV, token=token)
 
     # replace valid metdata key with an invalid one
-    with open(case_metadata) as f:
+    with open(case_metadata_path) as f:
         parsed_yaml = yaml.safe_load(f)
     parsed_yaml["masterdata_INVALID_SCHEMA"] = parsed_yaml["masterdata"]
     del parsed_yaml["masterdata"]
-    with open(case_metadata, "w") as f:
+    with open(case_metadata_path, "w") as f:
         yaml.dump(parsed_yaml, f)
 
     with pytest.warns(UserWarning, match="Registering case on Sumo failed*"):
         e = uploader.CaseOnDisk(
-            case_metadata_path=case_metadata,
+            case_metadata_path=case_metadata_path,
             casepath=CASEPATH,
             sumoclient=sumoclient,
         )
@@ -830,7 +853,7 @@ def test_schema_error_in_case(token, case_metadata):
 
 def test_schema_error_in_child(
     token,
-    case_metadata,
+    case_metadata_path,
     surface_file,
     surface_metadata_file,
     manifest_file,
@@ -843,7 +866,7 @@ def test_schema_error_in_child(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -911,14 +934,14 @@ def test_schema_error_in_child(
     os.remove(error_metadata_file)
 
 
-def test_corrupted_export_manifest(token, case_metadata):
+def test_corrupted_export_manifest(token, case_metadata_path):
     """
     Test sumo uploads behavor when export manifest is corrupted.
     """
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -966,7 +989,7 @@ def test_corrupted_export_manifest(token, case_metadata):
 
 def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     token,
-    case_metadata,
+    case_metadata_path,
     surface_file,
     surface_metadata_file,
     manifest_file,
@@ -978,7 +1001,7 @@ def test_multiple_exports_to_manifest_append_to_sumo_uploads(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -1092,12 +1115,12 @@ def test_openvds_available():
     sys.platform.startswith("darwin"),
     reason="do not run OpenVDS SEGYImport on mac os",
 )
-def test_seismic_openvds_file(token, case_metadata, segy_file):
+def test_seismic_openvds_file(token, case_metadata_path, segy_file):
     """Upload seimic in OpenVDS format to Sumo. Assert that it is there."""
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -1212,7 +1235,7 @@ def test_seismic_openvds_file(token, case_metadata, segy_file):
 )
 def test_sumo_mode_default(
     token,
-    case_metadata,
+    case_metadata_path,
     surface_file,
     surface_metadata_file,
     manifest_file,
@@ -1224,7 +1247,7 @@ def test_sumo_mode_default(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
     )
@@ -1258,7 +1281,7 @@ def test_sumo_mode_default(
 )
 def test_sumo_mode_copy(
     token,
-    case_metadata,
+    case_metadata_path,
     surface_file,
     surface_metadata_file,
     manifest_file,
@@ -1270,7 +1293,7 @@ def test_sumo_mode_copy(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
         sumo_mode="copy",
@@ -1304,7 +1327,7 @@ def test_sumo_mode_copy(
     reason="do not run on windows due to file-path differences",
 )
 def test_sumo_mode_move(
-    token, case_metadata, surface_file, surface_metadata_file
+    token, case_metadata_path, surface_file, surface_metadata_file
 ):
     """
     Test SUMO_MODE=move, i.e. deleting file after upload.
@@ -1312,7 +1335,7 @@ def test_sumo_mode_move(
     sumoclient = SumoClient(env=ENV, token=token)
 
     e = uploader.CaseOnDisk(
-        case_metadata_path=case_metadata,
+        case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
         sumo_mode="moVE",  # test case-insensitive
