@@ -10,6 +10,7 @@ import os
 import statistics
 import time
 import warnings
+from typing import overload
 
 from fmu.dataio.manifest import get_manifest_path
 from fmu.sumo.uploader._logger import get_uploader_logger
@@ -23,7 +24,7 @@ logger = get_uploader_logger()
 class SumoCase:
     def __init__(
         self,
-        case_metadata: str,
+        case_metadata: dict,
         sumoclient,
         verbosity="WARNING",
         sumo_mode="copy",
@@ -35,7 +36,9 @@ class SumoCase:
         self.sumoclient = sumoclient
         self.case_metadata = _sanitize_datetimes(case_metadata)
         self.casepath = casepath
-        self._fmu_case_uuid = self._get_fmu_case_uuid()
+        self._fmu_case_uuid = _get_field_from_metadata(
+            self.case_metadata, "fmu.case.uuid"
+        )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
         self.config_path = config_path
@@ -45,29 +48,6 @@ class SumoCase:
         self.sumo_mode = sumo_mode
 
         return
-
-    def _get_fmu_case_uuid(self):
-        """Return case_id from case_metadata."""
-        fmu_case_uuid = None
-        try:
-            if (
-                self.case_metadata
-                and self.case_metadata.get("fmu")
-                and self.case_metadata.get("fmu").get("case")
-            ):
-                fmu_case_uuid = (
-                    self.case_metadata.get("fmu").get("case").get("uuid")
-                )
-            if not fmu_case_uuid:
-                err_msg = "Invalid metadata: Could not get fmu.case.uuid from case metadata"
-                warnings.warn(err_msg)
-                return None
-            else:
-                return fmu_case_uuid
-        except Exception as err:
-            err_msg = f"Invalid metadata: Could not get fmu.case.uuid from case metadata: {err} {type(err)}"
-            warnings.warn(err_msg)
-            return None
 
     def _load_export_manifest(self):
         """Load export manifest from file."""
@@ -188,20 +168,21 @@ class SumoCase:
         logger.info(f"Wall time: {_dt:.2f} sec")
         logger.info(f"Sumo mode: {str(self.sumo_mode)}")
 
-        summary = {
-            "upload_summary": {
-                "parent_id": self.sumo_parent_id,
-                "total_files_count": str(len(self.files)),
-                "ok_files": str(len(ok_uploads)),
-                "failed_files": str(len(failed_uploads)),
-                "rejected_files": str(len(rejected_uploads)),
-                "wall_time_seconds": str(_dt),
-                "upload_statistics": upload_statistics,
-                "sumo_mode": self.sumo_mode,
-            }
+        details = {
+            "case_uuid": self._fmu_case_uuid,
+            "total_files_count": len(self.files),
+            "ok_files": len(ok_uploads),
+            "failed_files": len(failed_uploads),
+            "rejected_files": len(rejected_uploads),
+            "wall_time_seconds": _dt,
+            "upload_statistics": upload_statistics,
+            "sumo_mode": self.sumo_mode,
         }
+
         self._sumo_logger.info(
-            str(summary), extra={"objectUuid": self._sumo_parent_id}
+            "Upload completed for case with fmu_case_uuid: %s",
+            self._fmu_case_uuid,
+            extra={"objectUuid": self._fmu_case_uuid, "details": details},
         )
 
         return ok_uploads
@@ -277,21 +258,45 @@ def _calculate_upload_stats(uploads):
     return stats
 
 
+@overload
+def _sanitize_datetimes(data: dict) -> dict: ...
+@overload
+def _sanitize_datetimes(data: datetime.datetime) -> str: ...
+@overload
+def _sanitize_datetimes(data: list) -> list: ...
 def _sanitize_datetimes(data):
     """Sanitize datetimes.
 
-    Given a dictionary, find and replace all datetime objects
+    Given a dictionary, recursively find and replace all datetime objects
     with isoformat string, so that it does not cause problems for
     JSON later on."""
 
     if isinstance(data, datetime.datetime):
         return data.isoformat()
-
     if isinstance(data, dict):
         for key in data:
             data[key] = _sanitize_datetimes(data[key])
-
     elif isinstance(data, list):
         data = [_sanitize_datetimes(element) for element in data]
-
     return data
+
+
+def _get_field_from_metadata(case_metadata: dict, field_path: str):
+    """Traverse nested dict using a dot-separated field path
+
+    Return the value of the field if it exists, else None and log an error.
+
+    Given a case metadata dictionary and a field path in the form of
+    'fmu.case.uuid', return the value of the field if it exists, else None.
+    """
+
+    fields = field_path.split(".")
+    value = case_metadata
+
+    for field in fields:
+        if not isinstance(value, dict) or field not in value:
+            err_msg = f"Invalid metadata: Could not get {field_path} from case metadata"
+            warnings.warn(err_msg)
+            return None
+        value = value[field]
+    return value

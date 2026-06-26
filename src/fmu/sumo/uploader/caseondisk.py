@@ -82,7 +82,7 @@ class CaseOnDisk(SumoCase):
 
         logger.debug("case metadata path: %s", case_metadata_path)
         self._case_metadata_path = Path(case_metadata_path)
-        case_metadata = _load_case_metadata(case_metadata_path)
+        case_metadata = _load_case_metadata(self._case_metadata_path)
         super().__init__(
             case_metadata,
             sumoclient,
@@ -254,10 +254,10 @@ class CaseOnDisk(SumoCase):
         return 0
 
 
-def _load_case_metadata(case_metadata_path: str):
+def _load_case_metadata(case_metadata_path: Path) -> dict:
     """Load the case metadata."""
 
-    if not os.path.isfile(case_metadata_path):
+    if not case_metadata_path.is_file():
         warnings.warn(
             f"Invalid metadata: file does not exist {case_metadata_path}"
         )
