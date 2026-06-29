@@ -108,7 +108,6 @@ class SumoCase:
             self.config_path,
             self.parameters_path,
         )
-
         ok_uploads += upload_results.get("ok_uploads", [])
         failed_uploads += upload_results.get("failed_uploads", [])
         rejected_uploads += upload_results.get("rejected_uploads", [])
@@ -236,7 +235,9 @@ def _calculate_upload_stats(uploads):
     timing statistics for uploads."""
 
     blob_upload_times = [u["blob_upload"].elapsed for u in uploads]
+    blob_upload_retries = [u["blob_upload"].retries for u in uploads]
     metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
+    metdata_upload_retries = [u["metadata_upload"].retries for u in uploads]
 
     def _get_stats(values):
         return {
@@ -249,9 +250,11 @@ def _calculate_upload_stats(uploads):
     stats = {
         "blob": {
             "upload_time": _get_stats(blob_upload_times),
+            "upload_retries": _get_stats(blob_upload_retries),
         },
         "metadata": {
             "upload_time": _get_stats(metadata_upload_times),
+            "upload_retries": _get_stats(metdata_upload_retries),
         },
     }
 

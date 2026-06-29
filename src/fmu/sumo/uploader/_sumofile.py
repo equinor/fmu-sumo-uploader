@@ -14,8 +14,9 @@ import time
 import warnings
 
 import httpx
-import tenacity as tn
+import tenacity
 from azure.storage.blob import BlobClient, ContentSettings
+from sumo.wrapper import RetryStrategy
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 
@@ -41,12 +42,22 @@ class ResponseInfo:
         self.statuscode = statuscode
         self.t0 = t0
         self.elapsed = t1 - t0
+        self.retries = 0
 
     def ok(self):
         return self.result is not None and self.err is None
 
     def errinfo(self):
         return {"err": self.err, "statuscode": self.statuscode}
+
+    def json(self):
+        return {
+            "result": self.result,
+            "err": self.err,
+            "statuscode": self.statuscode,
+            "elapsed": self.elapsed,
+            "retries": self.retries,
+        }
 
 
 def upload_response(func):
@@ -83,10 +94,14 @@ def upload_response(func):
 
 
 @upload_response
-async def upload_metadata(sumoclient, sumo_parent_id, metadata):
+async def upload_metadata(
+    sumoclient, sumo_parent_id, metadata, retry_strategy
+):
     """Upload metadata to Sumo and return a consistent response format"""
     path = f"/objects('{sumo_parent_id}')"
-    response = await sumoclient.post_async(path=path, json=metadata)
+    response = await sumoclient.post_async(
+        path=path, json=metadata, retry_strategy=retry_strategy
+    )
     response.raise_for_status()
     return response.json()
 
@@ -101,13 +116,7 @@ def get_blob_client(blob_url):
     return blobclient
 
 
-@upload_response
-@tn.retry(
-    stop=tn.stop_after_attempt(6),
-    wait=tn.wait_exponential(multiplier=1, exp_base=2),
-)
-async def upload_blob(blob_url, byte_string):
-    """Upload blob to Azure and return a consistent response format"""
+async def _upload_blob(blob_url, byte_string):
     blobclient = get_blob_client(blob_url)
     content_settings = ContentSettings(content_type="application/octet-stream")
     # set a timeout of 10s per megabyte, and at least 30s
@@ -120,6 +129,16 @@ async def upload_blob(blob_url, byte_string):
         content_settings=content_settings,
         timeout=timeout,
     )
+
+
+@upload_response
+async def upload_blob(blob_url, byte_string, retryer):
+    """Upload blob to Azure and return a consistent response format"""
+
+    async def doit():
+        await _upload_blob(blob_url, byte_string)
+
+    await retryer(doit)
     # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.timezone.utc), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.timezone.utc), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
     # ... which is not what the caller expects, so we return something reasonable.
     return True
@@ -268,9 +287,20 @@ class SumoFile:
                 "openvds"  # we will upload seismic as openvds format, even if originally segy
             )
 
+        retries = [0]  # mutable object to store retry count in closure
+
+        def update_retries(retry_state):
+            retries[0] = retry_state.attempt_number
+
+        retry_strategy = RetryStrategy(before_sleep=update_retries)
+
         result["metadata_upload"] = await upload_metadata(
-            sumoclient, sumo_parent_id, self.metadata
+            sumoclient,
+            sumo_parent_id,
+            self.metadata,
+            retry_strategy=retry_strategy,
         )
+        result["metadata_upload"].retries = retries[0]
         if not result["metadata_upload"].ok():
             result["status"] = (
                 "rejected"
@@ -294,9 +324,30 @@ class SumoFile:
                 self.sumo_object_id, self.path, self.metadata, blob_url
             )
         else:  # non-seismic blob
-            result["blob_upload"] = await upload_blob(
-                blob_url, self.byte_string
+            retries = [0]  # mutable object to store retry count in closure
+
+            def update_retries(retry_state):
+                retries[0] = retry_state.attempt_number
+                return
+
+            def return_last_value(retry_state):
+                return retry_state.outcome.result()
+
+            retryer = tenacity.AsyncRetrying(
+                stop=tenacity.stop_after_attempt(1),
+                wait=(
+                    tenacity.wait_exponential(multiplier=0.5, exp_base=2)
+                    + tenacity.wait_random_exponential(
+                        multiplier=0.5, exp_base=2
+                    )
+                ),
+                retry_error_callback=return_last_value,
+                before_sleep=update_retries,
             )
+            result["blob_upload"] = await upload_blob(
+                blob_url, self.byte_string, retryer
+            )
+            result["blob_upload"].retries = retries[0]
 
         if not result["blob_upload"].ok():
             logger.warning(
