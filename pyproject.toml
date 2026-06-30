@@ -10,7 +10,7 @@ name = "fmu-sumo-uploader"
 requires-python = ">=3.11"
 dynamic = ["version"]
 dependencies = [
-  "sumo-wrapper-python>=1.7.0",
+  "sumo-wrapper-python>=1.8.0",
   "azure.storage.blob",
   "fmu-dataio>=2.26.0",
   "httpx>=0.24.1",
