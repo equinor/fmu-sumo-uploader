@@ -4,17 +4,19 @@ Base class for CaseOnJob and CaseOnDisk classes.
 
 """
 
-import datetime
 import json
 import os
 import statistics
 import time
 import warnings
-from typing import overload
 
 from fmu.dataio.manifest import get_manifest_path
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
+from fmu.sumo.uploader._utils import (
+    get_field_from_metadata,
+    sanitize_datetimes,
+)
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -34,9 +36,9 @@ class SumoCase:
     ):
         logger.setLevel(verbosity)
         self.sumoclient = sumoclient
-        self.case_metadata = _sanitize_datetimes(case_metadata)
+        self.case_metadata = sanitize_datetimes(case_metadata)
         self.casepath = casepath
-        self._fmu_case_uuid = _get_field_from_metadata(
+        self._fmu_case_uuid = get_field_from_metadata(
             self.case_metadata, "fmu.case.uuid"
         )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
@@ -259,47 +261,3 @@ def _calculate_upload_stats(uploads):
     }
 
     return stats
-
-
-@overload
-def _sanitize_datetimes(data: dict) -> dict: ...
-@overload
-def _sanitize_datetimes(data: datetime.datetime) -> str: ...
-@overload
-def _sanitize_datetimes(data: list) -> list: ...
-def _sanitize_datetimes(data):
-    """Sanitize datetimes.
-
-    Given a dictionary, recursively find and replace all datetime objects
-    with isoformat string, so that it does not cause problems for
-    JSON later on."""
-
-    if isinstance(data, datetime.datetime):
-        return data.isoformat()
-    if isinstance(data, dict):
-        for key in data:
-            data[key] = _sanitize_datetimes(data[key])
-    elif isinstance(data, list):
-        data = [_sanitize_datetimes(element) for element in data]
-    return data
-
-
-def _get_field_from_metadata(case_metadata: dict, field_path: str):
-    """Traverse nested dict using a dot-separated field path
-
-    Return the value of the field if it exists, else None and log an error.
-
-    Given a case metadata dictionary and a field path in the form of
-    'fmu.case.uuid', return the value of the field if it exists, else None.
-    """
-
-    fields = field_path.split(".")
-    value = case_metadata
-
-    for field in fields:
-        if not isinstance(value, dict) or field not in value:
-            err_msg = f"Invalid metadata: Could not get {field_path} from case metadata"
-            warnings.warn(err_msg)
-            return None
-        value = value[field]
-    return value
