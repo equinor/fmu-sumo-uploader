@@ -37,7 +37,7 @@ def is_seismic(metadata):
 
 def is_parameters(metadata):
     return (
-        get_field_from_metadata(metadata, "data.standard_results")
+        get_field_from_metadata(metadata, "data.standard_result.name")
         == "parameters"
     )
 
