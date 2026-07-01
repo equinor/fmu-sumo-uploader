@@ -288,6 +288,15 @@ class SumoFile:
                 extra={"objectUuid": self.metadata["fmu"]["case"]["uuid"]},
             )
 
+        if file_size_bytes is not None and file_size_bytes == sumo_blob_size:
+            sumo_logger.warning(
+                "FileSizeTest: file.size_bytes (%s) differs from blob size (%s) for %s",
+                file_size_bytes,
+                sumo_blob_size,
+                file_meta["absolute_path"],
+                extra={"objectUuid": self.metadata["fmu"]["case"]["uuid"]},
+            )
+
     async def _delete_metadata(self, sumoclient, object_id):
         logger.warning("Deleting metadata object: %s", object_id)
         path = f"/objects('{object_id}')"
