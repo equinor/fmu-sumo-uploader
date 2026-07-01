@@ -154,8 +154,8 @@ async def upload_blob(blob_url, byte_string, retryer):
 @upload_response
 async def merge_parameters(sumoclient, object_id, byte_string, retry_strategy):
     """Merge parameters blob to Sumo and return a consistent response format"""
-    path = f"/objects('{object_id}')/merge"
-    response = await sumoclient.post_async(
+    path = f"/objects('{object_id}')/blob/merge"
+    response = await sumoclient.put_async(
         path=path,
         blob=byte_string,
         retry_strategy=retry_strategy,
