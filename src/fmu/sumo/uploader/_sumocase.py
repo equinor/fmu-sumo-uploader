@@ -41,6 +41,12 @@ class SumoCase:
         self._fmu_case_uuid = get_field_from_metadata(
             self.case_metadata, "fmu.case.uuid"
         )
+        self._ensemble_uuid = os.environ.get(
+            "_ERT_ENSEMBLE_ID", "default_ensemble"
+        )
+        self._realization_id = int(
+            os.environ.get("_ERT_REALIZATION_NUMBER", 0)
+        )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
         self.config_path = config_path
@@ -130,6 +136,26 @@ class SumoCase:
             )
 
         _dt = time.perf_counter() - _t0
+
+        md_retries, blob_retries = _get_retries(
+            ok_uploads, failed_uploads, rejected_uploads
+        )
+        if len(md_retries) > 0 or len(blob_retries) > 0:
+            self._sumo_logger.warning(
+                "UploadRetries: Some uploads required retries. Case %s, Ensemble %s, Realization %d. Metadata retries: %d, Blob retries: %d",
+                self._fmu_case_uuid,
+                self._ensemble_uuid,
+                self._realization_id,
+                len(md_retries),
+                len(blob_retries),
+                extra={
+                    "objectUuid": self._sumo_parent_id,
+                    "details": {
+                        "metadata_retries": _get_stats(md_retries),
+                        "blob_retries": _get_stats(blob_retries),
+                    },
+                },
+            )
 
         upload_statistics = ""
         if len(ok_uploads) > 0:
@@ -230,6 +256,21 @@ def _get_log_msg(sumo_parent_id, status):
     return json.dumps(obj)
 
 
+def _get_stats(values):
+    return (
+        {
+            "count": len(values),
+            "mean": statistics.mean(values),
+            "max": max(values),
+            "min": min(values),
+            "sum": sum(values),
+            "std": statistics.stdev(values) if len(values) > 1 else 0.0,
+        }
+        if len(values) > 0
+        else {"count": 0}
+    )
+
+
 def _calculate_upload_stats(uploads):
     """Calculate upload statistics.
 
@@ -240,14 +281,6 @@ def _calculate_upload_stats(uploads):
     blob_upload_retries = [u["blob_upload"].retries for u in uploads]
     metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
     metdata_upload_retries = [u["metadata_upload"].retries for u in uploads]
-
-    def _get_stats(values):
-        return {
-            "mean": statistics.mean(values),
-            "max": max(values),
-            "min": min(values),
-            "std": statistics.stdev(values) if len(values) > 1 else 0.0,
-        }
 
     stats = {
         "blob": {
@@ -261,3 +294,23 @@ def _calculate_upload_stats(uploads):
     }
 
     return stats
+
+
+def _get_retries(ok_uploads, failed_uploads, rejected_uploads):
+    """Get retries for uploads.
+
+    Given lists of ok, failed and rejected uploads, return the retries for
+    metadata and blob uploads."""
+
+    md_retries = [
+        u["metadata_upload"].retries
+        for u in ok_uploads + failed_uploads + rejected_uploads
+        if "metadata_upload" in u
+    ]
+    blob_retries = [
+        u["blob_upload"].retries
+        for u in ok_uploads + failed_uploads + rejected_uploads
+        if "blob_upload" in u
+    ]
+
+    return [r for r in md_retries if r > 0], [r for r in blob_retries if r > 0]
