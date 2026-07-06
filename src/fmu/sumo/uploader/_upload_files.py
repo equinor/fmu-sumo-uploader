@@ -100,6 +100,8 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
         realization_metadata["_sumo"] = {}
         realization_metadata["class"] = "realization"
         realization_metadata["fmu"]["context"]["stage"] = "realization"
+        # Realization and Ensemble objects should always be internal
+        realization_metadata["access"]["classification"] = "internal"
 
         case_uuid = realization_metadata["fmu"]["case"]["uuid"]
 
