@@ -280,7 +280,7 @@ def _calculate_upload_stats(uploads):
     blob_upload_times = [u["blob_upload"].elapsed for u in uploads]
     blob_upload_retries = [u["blob_upload"].retries for u in uploads]
     metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
-    metdata_upload_retries = [u["metadata_upload"].retries for u in uploads]
+    metadata_upload_retries = [u["metadata_upload"].retries for u in uploads]
 
     stats = {
         "blob": {
@@ -289,7 +289,7 @@ def _calculate_upload_stats(uploads):
         },
         "metadata": {
             "upload_time": _get_stats(metadata_upload_times),
-            "upload_retries": _get_stats(metdata_upload_retries),
+            "upload_retries": _get_stats(metadata_upload_retries),
         },
     }
 
