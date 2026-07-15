@@ -200,7 +200,7 @@ class SumoCase:
 
         details = {
             "case_uuid": self._fmu_case_uuid,
-            "total_files_count": len(self.files),
+            "total_files_count": len(files_to_upload),
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
             "rejected_files": len(rejected_uploads),
