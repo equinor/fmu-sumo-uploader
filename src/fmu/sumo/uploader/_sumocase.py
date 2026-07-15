@@ -140,9 +140,7 @@ class SumoCase:
         md_retries, blob_retries = _get_retries(
             ok_uploads, failed_uploads, rejected_uploads
         )
-        print("---------- MD_RETRIES ----------")
-        print(md_retries)
-        print("---------- MD_RETRIES ----------")
+
         if len(md_retries) > 0 or len(blob_retries) > 0:
             self._sumo_logger.warning(
                 "UploadRetries: Some uploads required retries. Case %s, Ensemble %s, Realization %d. Metadata retries: %d, Blob retries: %d",
@@ -284,10 +282,6 @@ def _calculate_upload_stats(uploads):
     blob_upload_retries = [u["blob_upload"].retries for u in uploads]
     metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
     metadata_upload_retries = [u["metadata_upload"].retries for u in uploads]
-
-    print("---------- metadata_upload_retries ----------")
-    print(metadata_upload_retries)
-    print("---------- metadata_upload_retries ----------")
 
     stats = {
         "blob": {
