@@ -5,16 +5,11 @@ The function that uploads files.
 """
 
 import asyncio
-import json
 import os
 from copy import deepcopy
-from pathlib import Path
 
 import httpx
 
-from fmu.dataio import ExportData
-from fmu.dataio._global_config import load_global_config
-from fmu.sumo.uploader._fileonjob import FileOnJob
 from fmu.sumo.uploader._logger import get_uploader_logger
 
 # pylint: disable=C0103 # allow non-snake case variable names
@@ -88,7 +83,7 @@ async def _upload_files(
 
     for file in files:
         if "fmu" in file.metadata and "realization" in file.metadata["fmu"]:
-            realization_id = file.metadata["fmu"]["realization"]["uuid"]
+            # realization_id = file.metadata["fmu"]["realization"]["uuid"]
 
             try:
                 maybe_upload_realization_and_ensemble(
