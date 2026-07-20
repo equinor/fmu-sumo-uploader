@@ -43,13 +43,6 @@ def is_seismic(metadata):
     ]
 
 
-def is_parameters(metadata):
-    return (
-        get_field_from_metadata(metadata, "data.standard_result.name")
-        == "parameters"
-    )
-
-
 class ResponseInfo:
     def __init__(self, result, err, statuscode, t0, t1):
         self.result = result
@@ -157,19 +150,6 @@ async def upload_blob(blob_url, byte_string, retryer):
     # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.timezone.utc), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.timezone.utc), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
     # ... which is not what the caller expects, so we return something reasonable.
     return True
-
-
-@upload_response
-async def merge_parameters(sumoclient, object_id, byte_string, retry_strategy):
-    """Merge parameters blob to Sumo and return a consistent response format"""
-    path = f"/objects('{object_id}')/blob/merge"
-    response = await sumoclient.put_async(
-        path=path,
-        blob=byte_string,
-        retry_strategy=retry_strategy,
-    )
-    response.raise_for_status()
-    return response.json()
 
 
 @upload_response
@@ -360,23 +340,7 @@ class SumoFile:
 
         # UPLOAD BLOB
 
-        if is_parameters(self.metadata):
-            retries = [0]  # mutable object to store retry count in closure
-
-            def update_retries(retry_state):
-                retries[0] = retry_state.attempt_number
-
-            retry_strategy = RetryStrategy(before_sleep=update_retries)
-
-            result["blob_upload"] = await merge_parameters(
-                sumoclient,
-                self.sumo_object_id,
-                self.byte_string,
-                retry_strategy=retry_strategy,
-            )
-            result["blob_upload"].retries = retries[0]
-
-        elif is_seismic(self.metadata):
+        if is_seismic(self.metadata):
             logger.info(
                 "This is a seismic file, will attempt to upload as OpenVDS"
             )

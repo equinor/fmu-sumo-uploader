@@ -93,7 +93,6 @@ def main() -> None:
         casepath=args.casepath,
         metadata_path=args.metadata_path,
         config_path=args.config_path,
-        parameters_path=args.parameters_path,
         sumo_mode=args.sumo_mode,
         verbosity=logging.INFO,
     )
@@ -111,7 +110,6 @@ def sumo_upload_main(
     casepath: str,
     metadata_path: str,
     config_path: str = "fmuconfig/output/global_variables.yml",
-    parameters_path: str = "parameters.txt",
     sumo_mode: str = "copy",
     verbosity: int = logging.INFO,
 ) -> None:
@@ -146,7 +144,6 @@ def sumo_upload_main(
             verbosity,
             sumo_mode,
             config_path,
-            parameters_path,
             casepath,
         )
         # add files to the case on disk object
@@ -203,7 +200,6 @@ class SumoUpload(ErtScript):
             casepath=args.casepath,
             metadata_path=args.metadata_path,
             config_path=args.config_path,
-            parameters_path=args.parameters_path,
             sumo_mode=args.sumo_mode,
             verbosity=logging.WARNING,
         )
@@ -246,12 +242,6 @@ def _get_parser() -> argparse.ArgumentParser:
         type=str,
         help="Case-relative path to case metadata",
         default="share/metadata/fmu_case.yml",
-    )
-    parser.add_argument(
-        "--parameters_path",
-        type=str,
-        help="path to parameters.txt",
-        default="parameters.txt",
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Verbose output"

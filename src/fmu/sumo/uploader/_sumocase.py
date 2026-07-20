@@ -31,7 +31,6 @@ class SumoCase:
         verbosity="WARNING",
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
-        parameters_path="parameters.txt",
         casepath=None,
     ):
         logger.setLevel(verbosity)
@@ -50,7 +49,6 @@ class SumoCase:
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
         self.config_path = config_path
-        self.parameters_path = parameters_path
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
         self._files = []
         self.sumo_mode = sumo_mode
@@ -114,7 +112,6 @@ class SumoCase:
             sumoclient,
             self.sumo_mode,
             self.config_path,
-            self.parameters_path,
         )
         ok_uploads += upload_results.get("ok_uploads", [])
         failed_uploads += upload_results.get("failed_uploads", [])
