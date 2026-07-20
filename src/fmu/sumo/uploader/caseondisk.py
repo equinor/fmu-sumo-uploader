@@ -167,7 +167,7 @@ class CaseOnDisk(SumoCase):
                     self._fmu_case_uuid
                 )
             except Exception as ex:
-                logger.warn(f"Unable to create shared access key: {ex}")
+                logger.warning(f"Unable to create shared access key: {ex}")
                 pass
 
             logger.info("Case registered. SumoID: {}".format(sumo_parent_id))

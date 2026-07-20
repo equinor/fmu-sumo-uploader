@@ -140,6 +140,7 @@ class SumoCase:
         md_retries, blob_retries = _get_retries(
             ok_uploads, failed_uploads, rejected_uploads
         )
+
         if len(md_retries) > 0 or len(blob_retries) > 0:
             self._sumo_logger.warning(
                 "UploadRetries: Some uploads required retries. Case %s, Ensemble %s, Realization %d. Metadata retries: %d, Blob retries: %d",
@@ -197,7 +198,7 @@ class SumoCase:
 
         details = {
             "case_uuid": self._fmu_case_uuid,
-            "total_files_count": len(self.files),
+            "total_files_count": len(files_to_upload),
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
             "rejected_files": len(rejected_uploads),
@@ -280,7 +281,7 @@ def _calculate_upload_stats(uploads):
     blob_upload_times = [u["blob_upload"].elapsed for u in uploads]
     blob_upload_retries = [u["blob_upload"].retries for u in uploads]
     metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
-    metdata_upload_retries = [u["metadata_upload"].retries for u in uploads]
+    metadata_upload_retries = [u["metadata_upload"].retries for u in uploads]
 
     stats = {
         "blob": {
@@ -289,7 +290,7 @@ def _calculate_upload_stats(uploads):
         },
         "metadata": {
             "upload_time": _get_stats(metadata_upload_times),
-            "upload_retries": _get_stats(metdata_upload_retries),
+            "upload_retries": _get_stats(metadata_upload_retries),
         },
     }
 
