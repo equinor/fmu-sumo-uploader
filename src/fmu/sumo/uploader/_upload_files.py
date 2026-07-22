@@ -83,8 +83,6 @@ async def _upload_files(
 
     for file in files:
         if "fmu" in file.metadata and "realization" in file.metadata["fmu"]:
-            # realization_id = file.metadata["fmu"]["realization"]["uuid"]
-
             try:
                 maybe_upload_realization_and_ensemble(
                     sumoclient, file.metadata
