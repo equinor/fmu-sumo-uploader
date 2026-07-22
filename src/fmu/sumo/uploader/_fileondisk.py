@@ -65,7 +65,6 @@ class FileOnDisk(SumoFile):
         self.dir_name = os.path.dirname(self.path)
 
         self.sumo_object_id = None
-        self.sumo_parent_id = None
 
         self.metadata["_sumo"] = {}
 

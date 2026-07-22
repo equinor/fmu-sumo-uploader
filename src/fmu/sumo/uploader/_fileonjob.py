@@ -32,7 +32,6 @@ class FileOnJob(SumoFile):
         self.metadata = metadata
         self._size = None
         self.sumo_object_id = None
-        self.sumo_parent_id = None
 
         self.metadata["_sumo"] = {}
 
