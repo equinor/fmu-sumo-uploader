@@ -198,9 +198,7 @@ class SumoCase:
 
         details = {
             "case_uuid": self._fmu_case_uuid,
-            "ensemble_uuid": get_field_from_metadata(
-                self.case_metadata, "fmu.ensemble.uuid"
-            ),
+            "ert_ensemble_uuid": self._ensemble_uuid,
             "realization_id": self._realization_id,
             "asset": get_field_from_metadata(
                 self.case_metadata, "access.asset.name"
