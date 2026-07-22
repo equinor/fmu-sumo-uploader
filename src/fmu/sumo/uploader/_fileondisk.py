@@ -64,8 +64,6 @@ class FileOnDisk(SumoFile):
         self.basename = os.path.basename(self.path)
         self.dir_name = os.path.dirname(self.path)
 
-        self._file_format = None
-
         self.sumo_object_id = None
         self.sumo_parent_id = None
 
