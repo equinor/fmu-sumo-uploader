@@ -18,6 +18,19 @@ from fmu.sumo.uploader._logger import get_uploader_logger
 logger = get_uploader_logger()
 
 
+def _base_object_metadata(base_metadata):
+    """Strip data-object fields to prepare realization/ensemble metadata"""
+    metadata = deepcopy(base_metadata)
+    del metadata["data"]
+    del metadata["file"]
+    del metadata["display"]
+    del metadata["fmu"]["entity"]
+    metadata["_sumo"] = {}
+    # Realization and Ensemble objects should always be internal
+    metadata["access"]["classification"] = "internal"
+    return metadata
+
+
 def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
     realization_uuid = base_metadata["fmu"]["realization"]["uuid"]
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
@@ -33,16 +46,9 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
     classes = [hit["_source"]["class"] for hit in hits]
 
     if "realization" not in classes:
-        realization_metadata = deepcopy(base_metadata)
-        del realization_metadata["data"]
-        del realization_metadata["file"]
-        del realization_metadata["display"]
-        del realization_metadata["fmu"]["entity"]
-        realization_metadata["_sumo"] = {}
+        realization_metadata = _base_object_metadata(base_metadata)
         realization_metadata["class"] = "realization"
         realization_metadata["fmu"]["context"]["stage"] = "realization"
-        # Realization and Ensemble objects should always be internal
-        realization_metadata["access"]["classification"] = "internal"
 
         case_uuid = realization_metadata["fmu"]["case"]["uuid"]
 
@@ -54,6 +60,28 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
             sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
 
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
+
+
+def maybe_upload_ensemble(sumoclient, base_metadata):
+    ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
+
+    hits = sumoclient.post(
+        "/search",
+        json={
+            "query": {"ids": {"values": [ensemble_uuid]}},
+            "_source": ["class"],
+        },
+    ).json()["hits"]["hits"]
+
+    classes = [hit["_source"]["class"] for hit in hits]
+
+    if "ensemble" not in classes:
+        ensemble_metadata = _base_object_metadata(base_metadata)
+        ensemble_metadata["class"] = "ensemble"
+        ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
+
+        case_uuid = ensemble_metadata["fmu"]["case"]["uuid"]
+        sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
 
 
 def _get_batch_size():
@@ -104,6 +132,30 @@ async def _upload_files(
                 pass
 
             break
+    else:
+        for file in files:
+            if "fmu" in file.metadata and "ensemble" in file.metadata["fmu"]:
+                try:
+                    maybe_upload_ensemble(sumoclient, file.metadata)
+                except httpx.HTTPStatusError as err:
+                    err = err.with_traceback(None)
+                    error_string = (
+                        str(err.response.status_code)
+                        + err.response.reason_phrase
+                        + err.response.text
+                    )
+                    logger.warning(
+                        f"Metadata upload status error exception: {error_string}"
+                    )
+                    pass
+                except Exception as err:
+                    err = err.with_traceback(None)
+                    logger.warning(
+                        f"Metadata upload exception {err} {type(err)}"
+                    )
+                    pass
+
+                break
     all_results = []
     for i in range(0, len(files), batch_size):
         batch = files[i : i + batch_size]
