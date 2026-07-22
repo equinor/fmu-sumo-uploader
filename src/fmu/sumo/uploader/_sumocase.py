@@ -198,6 +198,11 @@ class SumoCase:
 
         details = {
             "case_uuid": self._fmu_case_uuid,
+            "ensemble_uuid": self._ensemble_uuid,
+            "realization_uuid": self._realization_id,
+            "asset": get_field_from_metadata(
+                self.case_metadata, "access.asset.name"
+            ),
             "total_files_count": len(files_to_upload),
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
