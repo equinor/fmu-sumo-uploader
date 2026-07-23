@@ -66,7 +66,6 @@ class CaseOnDisk(SumoCase):
         verbosity=logging.WARNING,
         sumo_mode="copy",
         config_path="fmuconfig/output/global_variables.yml",
-        parameters_path="parameters.txt",
         casepath=None,
     ):
         """Initialize CaseOnDisk.
@@ -89,7 +88,6 @@ class CaseOnDisk(SumoCase):
             verbosity,
             sumo_mode,
             config_path,
-            parameters_path,
             casepath,
         )
 
