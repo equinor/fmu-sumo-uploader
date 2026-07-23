@@ -5,76 +5,17 @@ The function that uploads files.
 """
 
 import asyncio
-import json
 import os
 from copy import deepcopy
-from pathlib import Path
 
 import httpx
 
-from fmu.dataio import ExportData
-from fmu.dataio._global_config import load_global_config
-from fmu.dataio._utils import read_parameters_txt
-from fmu.sumo.uploader._fileonjob import FileOnJob
 from fmu.sumo.uploader._logger import get_uploader_logger
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
 
 logger = get_uploader_logger()
-
-
-def get_parameter_file(parameters_path, config_path):
-    """Return a parameters object from the parameters.txt file
-
-    Args:
-        parameters_path (str): path to the parameters.txt file
-        config_path (str): path to the fmu config file
-
-    Returns:
-        SumoFile: parameters ready for upload, or None
-    """
-
-    bytestring = None
-    metadata = None
-
-    try:
-        # Prefers .fmu/ if it exists
-        global_config = load_global_config(Path(config_path))
-    except FileNotFoundError:
-        logger.warning(
-            "No fmu config to read at %s, cannot generate metadata to upload parameters",
-            config_path,
-        )
-        return None
-
-    try:
-        parameters = read_parameters_txt(parameters_path)
-    except FileNotFoundError:
-        logger.warning(
-            "No parameters file to read at %s, no file to upload.",
-            parameters_path,
-        )
-        return None
-
-    exd = ExportData(
-        config=global_config,
-        content="parameters",
-        name="parameters",
-        classification="internal",  # parameters readable by all roles
-    )
-    metadata = exd.generate_metadata(parameters)
-
-    if "fmu" not in metadata:
-        logger.warning("No fmu section in metadata. Cannot upload parameters.")
-        return None
-
-    bytestring = json.dumps(parameters).encode("utf-8")
-    paramfile = FileOnJob(bytestring, metadata)
-    paramfile.metadata_path = ""
-    paramfile.path = ""
-    paramfile.size = len(bytestring)
-    return paramfile
 
 
 def _base_object_metadata(base_metadata):
@@ -160,11 +101,9 @@ async def _upload_files(
     sumo_parent_id,
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
-    parameters_path="parameters.txt",
 ):
     """
     Upload realization and ensemble objects if they do not exist
-    Upload parameters file if it does not exist or it has changed
     Create threads and call _upload in each thread
     """
     batch_size = _get_batch_size()
@@ -172,8 +111,6 @@ async def _upload_files(
 
     for file in files:
         if "fmu" in file.metadata and "realization" in file.metadata["fmu"]:
-            realization_id = file.metadata["fmu"]["realization"]["uuid"]
-
             try:
                 maybe_upload_realization_and_ensemble(
                     sumoclient, file.metadata
@@ -193,23 +130,6 @@ async def _upload_files(
                 err = err.with_traceback(None)
                 logger.warning(f"Metadata upload exception {err} {type(err)}")
                 pass
-
-            paramfile = get_parameter_file(parameters_path, config_path)
-            if paramfile is not None:
-                query = f"fmu.case.uuid:{sumo_parent_id} AND fmu.realization.uuid:{realization_id} AND data.content:parameters"
-                search_res = sumoclient.get(
-                    "/search", {"$query": query, "$select": "_sumo.blob_md5"}
-                ).json()
-                # Check if the parameters file does not exist or has changed
-                if (
-                    search_res["hits"]["total"]["value"] == 0
-                    or search_res["hits"]["hits"][0]["_source"]["_sumo"][
-                        "blob_md5"
-                    ]
-                    != paramfile.metadata["_sumo"]["blob_md5"]
-                ):
-                    files.append(paramfile)
-                    logger.info("Parameters file will be uploaded")
 
             break
     else:
@@ -271,7 +191,6 @@ def upload_files(
     sumoclient,
     sumo_mode="copy",
     config_path="fmuconfig/output/global_variables.yml",
-    parameters_path="parameters.txt",
 ):
     """
     Upload files
@@ -289,7 +208,6 @@ def upload_files(
             sumo_parent_id,
             sumo_mode,
             config_path,
-            parameters_path,
         )
     )
 

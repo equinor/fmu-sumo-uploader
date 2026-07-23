@@ -295,13 +295,11 @@ def test_case_dictionaries(explorer: Explorer):
         ens_count = len(dicts.filter(ensemble=True))
         real_count = len(dicts.filter(realization=True))
         tagname_count = len(dicts.filter(tagname=dicts.tagnames))
-        name_parameter_found = len(dicts.filter(name="parameters")) > 0
 
         if (
             ens_count >= 1 * realizations
             and real_count >= 1 * realizations
             and tagname_count >= 1 * realizations
-            and name_parameter_found
         ):
             print(
                 "'Perfect' dictionary case:",
@@ -309,7 +307,6 @@ def test_case_dictionaries(explorer: Explorer):
                 ens_count,
                 real_count,
                 tagname_count,
-                name_parameter_found,
                 realizations,
             )
             perfect_cases += 1
@@ -320,7 +317,6 @@ def test_case_dictionaries(explorer: Explorer):
                 ens_count,
                 real_count,
                 tagname_count,
-                name_parameter_found,
                 realizations,
             )
 
