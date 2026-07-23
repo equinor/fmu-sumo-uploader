@@ -83,7 +83,6 @@ def _base_object_metadata(base_metadata):
     del metadata["data"]
     del metadata["file"]
     del metadata["display"]
-    del metadata["fmu"]["entity"]
     metadata["_sumo"] = {}
     # Realization and Ensemble objects should always be internal
     metadata["access"]["classification"] = "internal"
@@ -106,6 +105,7 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
 
     if "realization" not in classes:
         realization_metadata = _base_object_metadata(base_metadata)
+        del realization_metadata["fmu"]["entity"]
         realization_metadata["class"] = "realization"
         realization_metadata["fmu"]["context"]["stage"] = "realization"
 
