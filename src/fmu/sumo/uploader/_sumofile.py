@@ -333,7 +333,6 @@ class SumoFile:
             )
             return result
 
-        self.sumo_parent_id = sumo_parent_id
         self.sumo_object_id = result["metadata_upload"].result.get("objectid")
 
         blob_url = result["metadata_upload"].result.get("blob_url")

@@ -167,9 +167,9 @@ class SumoCase:
             )
 
             for u in rejected_uploads[0:4]:
-                logger.info(_get_log_msg(self.sumo_parent_id, u))
+                logger.info(_get_log_msg(self._sumo_parent_id, u))
                 self._sumo_logger.error(
-                    _get_log_msg(self.sumo_parent_id, u),
+                    _get_log_msg(self._sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
                 )
 
@@ -179,9 +179,9 @@ class SumoCase:
             )
 
             for u in failed_uploads[0:4]:
-                logger.info(_get_log_msg(self.sumo_parent_id, u))
+                logger.info(_get_log_msg(self._sumo_parent_id, u))
                 self._sumo_logger.error(
-                    _get_log_msg(self.sumo_parent_id, u),
+                    _get_log_msg(self._sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
                 )
 
@@ -195,6 +195,11 @@ class SumoCase:
 
         details = {
             "case_uuid": self._fmu_case_uuid,
+            "ert_ensemble_uuid": self._ensemble_uuid,
+            "realization_id": self._realization_id,
+            "asset": get_field_from_metadata(
+                self.case_metadata, "access.asset.name"
+            ),
             "total_files_count": len(files_to_upload),
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
