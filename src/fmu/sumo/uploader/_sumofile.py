@@ -265,7 +265,7 @@ async def upload_seismic_blob(object_id, path, metadata, blob_url):
 
     cmd_str = get_segyimport_cmd(blob_url, object_id, path, sample_unit)
     try:
-        cmd_result = subprocess.run(
+        cmd_result = subprocess.run(  # noqa: PLW1510 ASYNC221
             cmd_str, capture_output=True, text=True, shell=False
         )
         if cmd_result.returncode == 0:
@@ -273,8 +273,8 @@ async def upload_seismic_blob(object_id, path, metadata, blob_url):
         else:
             # Outer code expects and interprets http error codes
             logger.warning(
-                "Seismic upload failed with returncode",
-                cmd_result.returncode,
+                "Seismic upload failed with returncode "
+                + cmd_result.returncode,
             )
             raise Exception(
                 "FAILED SEGY upload as OpenVDS command " + cmd_result.stderr

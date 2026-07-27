@@ -45,7 +45,7 @@ class SumoCase:
             "_ERT_ENSEMBLE_ID", "default_ensemble"
         )
         self._realization_id = int(
-            os.environ.get("_ERT_REALIZATION_NUMBER", 0)
+            os.environ.get("_ERT_REALIZATION_NUMBER", "0")
         )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
@@ -192,7 +192,7 @@ class SumoCase:
         logger.info("Failed: %s", str(len(failed_uploads)))
         logger.info("Rejected: %s", str(len(rejected_uploads)))
         logger.info(f"Wall time: {_dt:.2f} sec")
-        logger.info(f"Sumo mode: {str(self.sumo_mode)}")
+        logger.info(f"Sumo mode: {self.sumo_mode}")
 
         details = {
             "case_uuid": self._fmu_case_uuid,

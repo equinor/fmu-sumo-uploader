@@ -329,7 +329,7 @@ def test_case_dictionaries(explorer: Explorer):
     seed()
     random_index = randint(0, len(case.dictionaries) - 1)
     obj = case.dictionaries[random_index]
-    obj._blob
+    assert obj._blob
 
     print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
     # There could be many failed runs from komodo-release repo,
