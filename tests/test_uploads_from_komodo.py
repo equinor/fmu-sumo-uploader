@@ -13,7 +13,7 @@ for those tests.
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from random import randint, seed
 
@@ -70,8 +70,8 @@ def _get_suitable_cases(explorer):
     cases = cases.filter(user="f_scout_ci")
     assert len(cases) > 0, "Found no cases uploaded by f_scout_ci"
     selected = []
-    an_hour_ago = datetime.now(timezone.utc) + timedelta(hours=-1)
-    a_day_ago = datetime.now(timezone.utc) + timedelta(hours=-24)
+    an_hour_ago = datetime.now(UTC) + timedelta(hours=-1)
+    a_day_ago = datetime.now(UTC) + timedelta(hours=-24)
     for case in cases:
         case_created = _get_creation_date(case.metadata)
         if case_created > an_hour_ago:
