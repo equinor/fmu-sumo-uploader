@@ -13,7 +13,7 @@ for those tests.
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from random import randint, seed
 

@@ -160,11 +160,9 @@ async def _upload_files(
                 logger.warning(
                     f"Metadata upload status error exception: {error_string}"
                 )
-                pass
             except Exception as err:
                 err = err.with_traceback(None)
                 logger.warning(f"Metadata upload exception {err} {type(err)}")
-                pass
 
             paramfile = get_parameter_file(parameters_path, config_path)
             if paramfile is not None:

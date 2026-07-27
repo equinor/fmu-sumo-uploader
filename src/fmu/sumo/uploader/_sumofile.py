@@ -387,7 +387,6 @@ class SumoFile:
 
             def update_retries(retry_state):
                 retries[0] = retry_state.attempt_number
-                return
 
             def return_last_value(retry_state):
                 return retry_state.outcome.result()

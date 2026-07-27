@@ -55,8 +55,6 @@ class SumoCase:
         self._files = []
         self.sumo_mode = sumo_mode
 
-        return
-
     def _load_export_manifest(self):
         """Load export manifest from file."""
 
@@ -219,8 +217,6 @@ class SumoCase:
         )
 
         return ok_uploads
-
-    pass
 
     def _update_sumo_uploads(self):
         """Update sumo uploads log."""

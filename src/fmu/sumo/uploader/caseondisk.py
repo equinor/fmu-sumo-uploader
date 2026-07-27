@@ -168,9 +168,8 @@ class CaseOnDisk(SumoCase):
                 )
             except Exception as ex:
                 logger.warning(f"Unable to create shared access key: {ex}")
-                pass
 
-            logger.info("Case registered. SumoID: {}".format(sumo_parent_id))
+            logger.info(f"Case registered. SumoID: {sumo_parent_id}")
 
             return sumo_parent_id
         except Exception as err:
