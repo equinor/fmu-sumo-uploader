@@ -13,7 +13,7 @@ for those tests.
 import logging
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from random import randint, seed
 
@@ -70,8 +70,8 @@ def _get_suitable_cases(explorer):
     cases = cases.filter(user="f_scout_ci")
     assert len(cases) > 0, "Found no cases uploaded by f_scout_ci"
     selected = []
-    an_hour_ago = datetime.now(timezone.utc) + timedelta(hours=-1)
-    a_day_ago = datetime.now(timezone.utc) + timedelta(hours=-24)
+    an_hour_ago = datetime.now(UTC) + timedelta(hours=-1)
+    a_day_ago = datetime.now(UTC) + timedelta(hours=-24)
     for case in cases:
         case_created = _get_creation_date(case.metadata)
         if case_created > an_hour_ago:
@@ -325,7 +325,7 @@ def test_case_dictionaries(explorer: Explorer):
     seed()
     random_index = randint(0, len(case.dictionaries) - 1)
     obj = case.dictionaries[random_index]
-    obj._blob
+    assert obj._blob
 
     print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
     # There could be many failed runs from komodo-release repo,

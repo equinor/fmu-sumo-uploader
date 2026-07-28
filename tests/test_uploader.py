@@ -629,8 +629,7 @@ def test_missing_child_metadata(
 
     warning_messages = [str(warning.message) for warning in warnings_record]
     assert any(
-        message.startswith("No metadata, skipping file")
-        or message.startswith("Invalid metadata")
+        message.startswith(("No metadata, skipping file", "Invalid metadata"))
         for message in warning_messages
     ), warning_messages
 
@@ -661,7 +660,7 @@ def test_invalid_yml_in_case_metadata(token):
     sumoclient = SumoClient(env=ENV, token=token)
 
     case_file = "tests/data/case_invalid.yml"
-    with pytest.warns(UserWarning) as warnings_record:
+    with pytest.warns(UserWarning) as warnings_record:  # noqa: PT031
         uploader.CaseOnDisk(
             case_metadata_path=case_file,
             casepath=CASEPATH,
@@ -752,7 +751,7 @@ def test_schema_error_in_case(token, case_metadata_path):
     with open(case_metadata_path, "w") as f:
         yaml.dump(parsed_yaml, f)
 
-    with pytest.warns(UserWarning, match="Registering case on Sumo failed*"):
+    with pytest.warns(UserWarning, match="Registering case on Sumo failed*"):  # noqa: PT031
         e = uploader.CaseOnDisk(
             case_metadata_path=case_metadata_path,
             casepath=CASEPATH,
@@ -1014,7 +1013,7 @@ def _get_segy_path(segy_command):
 def test_openvds_available():
     """Test that OpenVDS is installed and can be successfully called"""
     path_to_segy_import = _get_segy_path("SEGYImport")
-    check_segy_import_version = subprocess.run(
+    check_segy_import_version = subprocess.run(  # noqa: PLW1510
         [path_to_segy_import, "--version"], capture_output=True, text=True
     )
     assert check_segy_import_version.returncode == 0
@@ -1100,7 +1099,7 @@ def test_seismic_openvds_file(token, case_metadata_path, segy_file):
                 url_conn,
                 "exported.segy",
             ]
-            cmd_result = subprocess.run(
+            cmd_result = subprocess.run(  # noqa: PLW1510
                 cmdstr, capture_output=True, text=True, shell=False
             )
 

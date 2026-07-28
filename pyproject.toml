@@ -51,7 +51,7 @@ exclude = [".env", ".git", ".github", ".venv", "venv"]
 line-length = 79
 
 [tool.ruff.lint]
-ignore = ["E501"]
+ignore = ["E501", "BLE001", "TRY002", "EXE001"]
 
 extend-select = [
   "C4",  # Flake8-comprehensions

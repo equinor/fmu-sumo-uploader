@@ -44,7 +44,7 @@ class SumoCase:
             "_ERT_ENSEMBLE_ID", "default_ensemble"
         )
         self._realization_id = int(
-            os.environ.get("_ERT_REALIZATION_NUMBER", 0)
+            os.environ.get("_ERT_REALIZATION_NUMBER", "0")
         )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
@@ -52,8 +52,6 @@ class SumoCase:
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
         self._files = []
         self.sumo_mode = sumo_mode
-
-        return
 
     def _load_export_manifest(self):
         """Load export manifest from file."""
@@ -167,9 +165,9 @@ class SumoCase:
             )
 
             for u in rejected_uploads[0:4]:
-                logger.info(_get_log_msg(self.sumo_parent_id, u))
+                logger.info(_get_log_msg(self._sumo_parent_id, u))
                 self._sumo_logger.error(
-                    _get_log_msg(self.sumo_parent_id, u),
+                    _get_log_msg(self._sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
                 )
 
@@ -179,9 +177,9 @@ class SumoCase:
             )
 
             for u in failed_uploads[0:4]:
-                logger.info(_get_log_msg(self.sumo_parent_id, u))
+                logger.info(_get_log_msg(self._sumo_parent_id, u))
                 self._sumo_logger.error(
-                    _get_log_msg(self.sumo_parent_id, u),
+                    _get_log_msg(self._sumo_parent_id, u),
                     extra={"objectUuid": self._sumo_parent_id},
                 )
 
@@ -191,10 +189,15 @@ class SumoCase:
         logger.info("Failed: %s", str(len(failed_uploads)))
         logger.info("Rejected: %s", str(len(rejected_uploads)))
         logger.info(f"Wall time: {_dt:.2f} sec")
-        logger.info(f"Sumo mode: {str(self.sumo_mode)}")
+        logger.info(f"Sumo mode: {self.sumo_mode}")
 
         details = {
             "case_uuid": self._fmu_case_uuid,
+            "ert_ensemble_uuid": self._ensemble_uuid,
+            "realization_id": self._realization_id,
+            "asset": get_field_from_metadata(
+                self.case_metadata, "access.asset.name"
+            ),
             "total_files_count": len(files_to_upload),
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
@@ -211,8 +214,6 @@ class SumoCase:
         )
 
         return ok_uploads
-
-    pass
 
     def _update_sumo_uploads(self):
         """Update sumo uploads log."""

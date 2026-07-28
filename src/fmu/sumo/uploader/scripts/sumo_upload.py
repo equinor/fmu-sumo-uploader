@@ -175,7 +175,7 @@ def sumo_upload_main(
                     extra={"objectUuid": e.fmu_case_uuid},
                 )
             except Exception:
-                pass
+                logger.warning("Failed logging to exception to Sumo")
         return
 
 
@@ -282,7 +282,7 @@ def _check_arguments(args) -> None:
 
     if not Path(args.casepath).is_absolute():
         if args.casepath.startswith("<") and args.casepath.endswith(">"):
-            ValueError("ERT variable is not defined: %s", args.casepath)
+            raise ValueError("ERT variable is not defined: %s", args.casepath)
         raise ValueError(
             f"Provided casepath '{args.casepath}' must be an absolute path to the case root"
         )
