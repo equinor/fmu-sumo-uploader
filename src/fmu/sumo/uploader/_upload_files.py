@@ -57,6 +57,7 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
             del ensemble_metadata["fmu"]["realization"]
             ensemble_metadata["class"] = "ensemble"
             ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
+            ensemble_metadata["_sumo"]["status"] = "scratch"
             sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
 
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
@@ -79,6 +80,7 @@ def maybe_upload_ensemble(sumoclient, base_metadata):
         ensemble_metadata = _base_object_metadata(base_metadata)
         ensemble_metadata["class"] = "ensemble"
         ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
+        ensemble_metadata["_sumo"]["status"] = "scratch"
 
         case_uuid = ensemble_metadata["fmu"]["case"]["uuid"]
         sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
@@ -145,13 +147,11 @@ async def _upload_files(
                     logger.warning(
                         f"Metadata upload status error exception: {error_string}"
                     )
-                    pass
                 except Exception as err:
                     err = err.with_traceback(None)
                     logger.warning(
                         f"Metadata upload exception {err} {type(err)}"
                     )
-                    pass
 
                 break
     all_results = []
