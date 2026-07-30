@@ -155,7 +155,7 @@ def test_case_surfaces(explorer: Explorer):
             break
     else:
         # This is only run if the for loop completes without "break"
-        print("No cases satisfy the surface test")
+        assert False, "No cases satisfy the surface test"
 
 
 def test_case_tables(explorer: Explorer):
@@ -206,7 +206,7 @@ def test_case_tables(explorer: Explorer):
             break
     else:
         # This is only run if the for loop completes without "break"
-        print("No cases satisfy the table test")
+        assert False, "No cases satisfy the table test"
 
 
 def test_case_polygons(explorer: Explorer):
@@ -250,7 +250,7 @@ def test_case_polygons(explorer: Explorer):
             break
     else:
         # This is only run if the for loop completes without "break"
-        print("No cases satisfy the polygon test")
+        assert False, "No cases satisfy the polygon test"
 
 
 @pytest.mark.skipif(
@@ -297,4 +297,4 @@ def test_case_seismic(explorer: Explorer):
             break
     else:
         # This is only run if the for loop completes without "break"
-        print("No cases satisfy the seismic test")
+        assert False, "No cases satisfy the seismic test"
