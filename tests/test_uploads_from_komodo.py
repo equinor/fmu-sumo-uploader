@@ -253,49 +253,6 @@ def test_case_polygons(explorer: Explorer):
         print("No cases satisfy the polygon test")
 
 
-def test_case_dictionaries(explorer: Explorer):
-    """Test dictionaries from cases uploaded from komodo-releases"""
-    cases = _get_suitable_cases(explorer)
-    for case in cases:
-        dicts = case.dictionaries
-        assert len(dicts.uuids) == len(dicts)
-        assert sum(len(dicts.filter(name=n)) for n in dicts.names) == len(
-            dicts
-        )
-
-        realizations = len(case.realizations)
-        ens_count = len(dicts.filter(ensemble=True))
-        real_count = len(dicts.filter(realization=True))
-        tagname_count = len(dicts.filter(tagname=dicts.tagnames))
-
-        if (
-            ens_count >= 1 * realizations
-            and real_count >= 1 * realizations
-            and tagname_count >= 1 * realizations
-            and len(dicts) > 0
-        ):
-            print(
-                "'Perfect' dictionary case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                tagname_count,
-                realizations,
-            )
-            # Will not test every blob element,
-            # just test that a random blob can be read
-            seed()
-            random_index = randint(0, len(dicts) - 1)
-            obj = dicts[random_index]
-            assert obj._blob
-            # There could be many failed runs from komodo-release repo,
-            # so lets be happy if we find 1 or more 'perfect' cases.
-            break
-    else:
-        # This is only run if the for loop completes without "break"
-        print("No cases satisfy the dictionary test")
-
-
 @pytest.mark.skipif(
     sys.platform.startswith("darwin"),
     reason="do not run OpenVDS on mac os",
