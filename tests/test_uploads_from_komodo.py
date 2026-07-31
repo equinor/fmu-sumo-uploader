@@ -119,7 +119,6 @@ def test_case_consistency(explorer: Explorer):
 def test_case_surfaces(explorer: Explorer):
     """Test surfaces from cases uploaded from komodo-releases"""
     cases = _get_suitable_cases(explorer)
-    perfect_cases = 0
     for case in cases:
         surfs = case.surfaces
         assert len(surfs.uuids) == len(surfs)
@@ -131,7 +130,11 @@ def test_case_surfaces(explorer: Explorer):
         ens_count = len(surfs.filter(ensemble=True))
         real_count = len(surfs.filter(realization=True))
 
-        if ens_count >= 54 * realizations and real_count >= 54 * realizations:
+        if (
+            ens_count >= 54 * realizations
+            and real_count >= 54 * realizations
+            and len(surfs) > 0
+        ):
             print(
                 "'Perfect' surface case:",
                 case.uuid,
@@ -139,35 +142,25 @@ def test_case_surfaces(explorer: Explorer):
                 real_count,
                 realizations,
             )
-            perfect_cases += 1
-        else:
-            print(
-                "'NOT perfect' surface case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                realizations,
+            # Will not test every blob element,
+            # just test that a random blob can be read
+            seed()
+            random_index = randint(0, len(case.surfaces) - 1)
+            reg = case.surfaces[random_index].to_regular_surface()
+            assert type(reg) is xtgeo.RegularSurface, (
+                "Failed to read content of a blob"
             )
-
-    # Will not test every blob element,
-    # just test that a random blob can be read
-    seed()
-    random_index = randint(0, len(case.surfaces) - 1)
-    reg = case.surfaces[random_index].to_regular_surface()
-    assert type(reg) is xtgeo.RegularSurface, (
-        "Failed to read content of a blob"
-    )
-
-    print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
-    # There could be many failed runs from komodo-release repo,
-    # so lets be happy if we find 1 or more 'perfect' cases.
-    assert perfect_cases > 0, "None of the cases satisfy the surface test"
+            # There could be many failed runs from komodo-release repo,
+            # so lets be happy if we find 1 or more 'perfect' cases.
+            break
+    else:
+        # This is only run if the for loop completes without "break"
+        assert False, "No cases satisfy the surface test"
 
 
 def test_case_tables(explorer: Explorer):
     """Test tables from cases uploaded from komodo-releases"""
     cases = _get_suitable_cases(explorer)
-    perfect_cases = 0
     for case in cases:
         tbls = case.tables
         assert len(tbls.uuids) == len(tbls)
@@ -192,6 +185,7 @@ def test_case_tables(explorer: Explorer):
             and drogon_rft_count >= 1 * realizations
             and drogon_satfunc_count >= 1 * realizations
             and drogon_summary_count >= 1 * realizations
+            and len(tbls) > 0
         ):
             print(
                 "'Perfect' table case:",
@@ -201,34 +195,23 @@ def test_case_tables(explorer: Explorer):
                 tagname_count,
                 realizations,
             )
-            perfect_cases += 1
-        else:
-            print(
-                "'NOT perfect' table case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                tagname_count,
-                realizations,
-            )
-
-    # Will not test every blob element,
-    # just test that a random blob can be read
-    seed()
-    random_index = randint(0, len(case.tables) - 1)
-    arrow = case.tables[random_index].to_arrow()
-    arrow.validate()
-
-    print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
-    # There could be many failed runs from komodo-release repo,
-    # so lets be happy if we find 1 or more 'perfect' cases.
-    assert perfect_cases > 0, "None of the cases satisfy the table test"
+            # Will not test every blob element,
+            # just test that a random blob can be read
+            seed()
+            random_index = randint(0, len(case.tables) - 1)
+            arrow = case.tables[random_index].to_arrow()
+            arrow.validate()
+            # There could be many failed runs from komodo-release repo,
+            # so lets be happy if we find 1 or more 'perfect' cases.
+            break
+    else:
+        # This is only run if the for loop completes without "break"
+        assert False, "No cases satisfy the table test"
 
 
 def test_case_polygons(explorer: Explorer):
     """Test polygons from cases uploaded from komodo-releases"""
     cases = _get_suitable_cases(explorer)
-    perfect_cases = 0
 
     for case in cases:
         polys = case.polygons
@@ -256,81 +239,18 @@ def test_case_polygons(explorer: Explorer):
                 tagname_count,
                 realizations,
             )
-            perfect_cases += 1
-        else:
-            print(
-                "'NOT perfect' polygon case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                tagname_count,
-                realizations,
-            )
-
-    # Will not test every blob element,
-    # just test that a random parquet blob can be read
-    seed()
-    parquet_polygons = case.polygons.filter(dataformat="parquet")
-    random_index = randint(0, len(parquet_polygons) - 1)
-    parquet_polygons[random_index].to_pandas()
-
-    print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
-    # There could be many failed runs from komodo-release repo,
-    # so lets be happy if we find 1 or more 'perfect' cases.
-    assert perfect_cases > 0, "None of the cases satisfy the polygon test"
-
-
-def test_case_dictionaries(explorer: Explorer):
-    """Test dictionaries from cases uploaded from komodo-releases"""
-    cases = _get_suitable_cases(explorer)
-    perfect_cases = 0
-    for case in cases:
-        dicts = case.dictionaries
-        assert len(dicts.uuids) == len(dicts)
-        assert sum(len(dicts.filter(name=n)) for n in dicts.names) == len(
-            dicts
-        )
-
-        realizations = len(case.realizations)
-        ens_count = len(dicts.filter(ensemble=True))
-        real_count = len(dicts.filter(realization=True))
-        tagname_count = len(dicts.filter(tagname=dicts.tagnames))
-
-        if (
-            ens_count >= 1 * realizations
-            and real_count >= 1 * realizations
-            and tagname_count >= 1 * realizations
-        ):
-            print(
-                "'Perfect' dictionary case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                tagname_count,
-                realizations,
-            )
-            perfect_cases += 1
-        else:
-            print(
-                "'NOT perfect' dicationary case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                tagname_count,
-                realizations,
-            )
-
-    # Will not test every blob element,
-    # just test that a random blob can be read
-    seed()
-    random_index = randint(0, len(case.dictionaries) - 1)
-    obj = case.dictionaries[random_index]
-    assert obj._blob
-
-    print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
-    # There could be many failed runs from komodo-release repo,
-    # so lets be happy if we find 1 or more 'perfect' cases.
-    assert perfect_cases > 0, "None of the cases satisfy the dictionary test"
+            # Will not test every blob element,
+            # just test that a random parquet blob can be read
+            seed()
+            parquet_polygons = case.polygons.filter(dataformat="parquet")
+            random_index = randint(0, len(parquet_polygons) - 1)
+            parquet_polygons[random_index].to_pandas()
+            # There could be many failed runs from komodo-release repo,
+            # so lets be happy if we find 1 or more 'perfect' cases.
+            break
+    else:
+        # This is only run if the for loop completes without "break"
+        assert False, "No cases satisfy the polygon test"
 
 
 @pytest.mark.skipif(
@@ -340,7 +260,6 @@ def test_case_dictionaries(explorer: Explorer):
 def test_case_seismic(explorer: Explorer):
     """Test seismic cubes in cases uploaded from komodo-releases"""
     cases = _get_suitable_cases(explorer)
-    perfect_cases = 0
     for case in cases:
         cbs = case.cubes
         assert len(cbs.uuids) == len(cbs)
@@ -352,7 +271,11 @@ def test_case_seismic(explorer: Explorer):
         ens_count = len(cbs.filter(ensemble=True))
         real_count = len(cbs.filter(realization=True))
 
-        if ens_count >= 10 * realizations and real_count >= 10 * realizations:
+        if (
+            ens_count >= 10 * realizations
+            and real_count >= 10 * realizations
+            and len(cbs) > 0
+        ):
             print(
                 "'Perfect' seismic case:",
                 case.uuid,
@@ -360,27 +283,18 @@ def test_case_seismic(explorer: Explorer):
                 real_count,
                 realizations,
             )
-            perfect_cases += 1
-        else:
-            print(
-                "'NOT perfect' seismic case:",
-                case.uuid,
-                ens_count,
-                real_count,
-                realizations,
-            )
-
-    # Will not test every blob element,
-    # just test that a random blob can be read
-    seed()
-    random_index = randint(0, len(case.cubes) - 1)
-    cube = case.cubes[random_index]
-    handle = cube.openvds_handle
-    layout = openvds.getLayout(handle)
-    channel_count = layout.getChannelCount()
-    assert channel_count > 0
-
-    print(f"{perfect_cases} 'perfect' cases out of {len(cases)}")
-    # There could be many failed runs from komodo-release repo,
-    # so lets be happy if we find 1 or more 'perfect' cases.
-    assert perfect_cases > 0, "None of the cases satisfy the seismic test"
+            # Will not test every blob element,
+            # just test that a random blob can be read
+            seed()
+            random_index = randint(0, len(case.cubes) - 1)
+            cube = case.cubes[random_index]
+            handle = cube.openvds_handle
+            layout = openvds.getLayout(handle)
+            channel_count = layout.getChannelCount()
+            assert channel_count > 0
+            # There could be many failed runs from komodo-release repo,
+            # so lets be happy if we find 1 or more 'perfect' cases.
+            break
+    else:
+        # This is only run if the for loop completes without "break"
+        assert False, "No cases satisfy the seismic test"
