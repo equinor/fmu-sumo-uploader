@@ -27,7 +27,7 @@ jobs:
           subscription-id: 87897772-fb27-495f-ae40-486a2df57baa
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
