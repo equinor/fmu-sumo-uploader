@@ -1,6 +1,6 @@
 """
 
-Base class for CaseOnJob and CaseOnDisk classes.
+Base class for CaseOnDisk class.
 
 """
 
