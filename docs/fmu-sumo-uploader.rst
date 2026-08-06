@@ -68,9 +68,6 @@ Individual files belonging to the case are represented as FileOnDisk objects.
 `FileOnDisk`: The FileOnDisk object represents a single file in an FMU case, 
 stored on the local disk.
 
-`CaseOnJob`: Similar to CaseOnDisk, but does not refer to files on disk. Instead 
-uses in-memory structures.
-
 `FileOnJob`: Similar to FileOnDisk, but uses in-memory structures.
 
 Usage and examples

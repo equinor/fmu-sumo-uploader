@@ -18,6 +18,10 @@ from fmu.sumo.uploader._logger import get_uploader_logger
 logger = get_uploader_logger()
 
 
+def get_ert_env(name: str) -> str | None:
+    return os.getenv(f"_ERT_{name}")
+
+
 def _base_object_metadata(base_metadata):
     """Strip data-object fields to prepare realization/ensemble metadata"""
     metadata = deepcopy(base_metadata)
@@ -111,49 +115,48 @@ async def _upload_files(
     batch_size = _get_batch_size()
     logger.info(f"batch_size={batch_size}")
 
-    for file in files:
-        if "fmu" in file.metadata and "realization" in file.metadata["fmu"]:
-            try:
-                maybe_upload_realization_and_ensemble(
-                    sumoclient, file.metadata
-                )
-            except httpx.HTTPStatusError as err:
-                err = err.with_traceback(None)
-                error_string = (
-                    str(err.response.status_code)
-                    + err.response.reason_phrase
-                    + err.response.text
-                )
-                logger.warning(
-                    f"Metadata upload status error exception: {error_string}"
-                )
-            except Exception as err:
-                err = err.with_traceback(None)
-                logger.warning(f"Metadata upload exception {err} {type(err)}")
+    # Use environment variables to get context
+    real_num = get_ert_env("REALIZATION_NUMBER")
+    iter_num = get_ert_env("ITERATION_NUMBER")
 
-            break
-    else:
-        for file in files:
-            if "fmu" in file.metadata and "ensemble" in file.metadata["fmu"]:
-                try:
-                    maybe_upload_ensemble(sumoclient, file.metadata)
-                except httpx.HTTPStatusError as err:
-                    err = err.with_traceback(None)
-                    error_string = (
-                        str(err.response.status_code)
-                        + err.response.reason_phrase
-                        + err.response.text
-                    )
-                    logger.warning(
-                        f"Metadata upload status error exception: {error_string}"
-                    )
-                except Exception as err:
-                    err = err.with_traceback(None)
-                    logger.warning(
-                        f"Metadata upload exception {err} {type(err)}"
-                    )
+    # Realization context
+    if real_num:
+        try:
+            maybe_upload_realization_and_ensemble(
+                sumoclient, files[0].metadata
+            )
+        except httpx.HTTPStatusError as err:
+            err = err.with_traceback(None)
+            error_string = (
+                str(err.response.status_code)
+                + err.response.reason_phrase
+                + err.response.text
+            )
+            logger.warning(
+                f"Metadata upload status error exception: {error_string}"
+            )
+        except Exception as err:
+            err = err.with_traceback(None)
+            logger.warning(f"Metadata upload exception {err} {type(err)}")
 
-                break
+    # Ensemble context. Doesn't have a realisation number
+    elif iter_num:
+        try:
+            maybe_upload_ensemble(sumoclient, files[0].metadata)
+        except httpx.HTTPStatusError as err:
+            err = err.with_traceback(None)
+            error_string = (
+                str(err.response.status_code)
+                + err.response.reason_phrase
+                + err.response.text
+            )
+            logger.warning(
+                f"Metadata upload status error exception: {error_string}"
+            )
+        except Exception as err:
+            err = err.with_traceback(None)
+            logger.warning(f"Metadata upload exception {err} {type(err)}")
+
     all_results = []
     for i in range(0, len(files), batch_size):
         batch = files[i : i + batch_size]
