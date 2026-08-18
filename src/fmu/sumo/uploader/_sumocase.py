@@ -11,6 +11,7 @@ import time
 import warnings
 
 from fmu.dataio.manifest import get_manifest_path
+
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
 from fmu.sumo.uploader._utils import (
