@@ -20,7 +20,7 @@ from azure.storage.blob import BlobClient, ContentSettings
 from sumo.wrapper import RetryStrategy
 
 from fmu.sumo.uploader._logger import get_uploader_logger
-from fmu.sumo.uploader._utils import get_field_from_metadata
+from fmu.sumo.uploader._utils import get_element
 
 _max_single_put_size = 4 * 1024 * 1024
 
@@ -37,7 +37,7 @@ def _get_sumo_logger(sumoclient):
 
 
 def is_seismic(metadata):
-    return get_field_from_metadata(metadata, "data.format") in [
+    return get_element(metadata, "data.format") in [
         "openvds",
         "segy",
     ]
@@ -274,18 +274,19 @@ class SumoFile:
     def __init__(self):
         return
 
-    def _warn_on_blob_size_mismatch(self, sumo_logger):
-        file_meta = self.metadata.get("file", {})
-        file_size_bytes = file_meta.get("size_bytes")
-        sumo_blob_size = self.metadata["_sumo"]["blob_size"]
+    def _warn_on_blob_size_mismatch(self, file_size_bytes, sumo_logger):
+        sumo_blob_size = get_element(self.metadata, "_sumo.blob_size")
 
         if file_size_bytes is not None and file_size_bytes != sumo_blob_size:
+            file_path = get_element(self.metadata, "file.absolute_path")
+            case_uuid = get_element(self.metadata, "fmu.case.uuid")
+
             sumo_logger.warning(
                 "FileSizeDiscrepancy: file.size_bytes (%s) differs from blob size (%s) for %s",
                 file_size_bytes,
                 sumo_blob_size,
-                file_meta["absolute_path"],
-                extra={"objectUuid": self.metadata["fmu"]["case"]["uuid"]},
+                file_path,
+                extra={"objectUuid": case_uuid},
             )
 
     async def _delete_metadata(self, sumoclient, object_id):
@@ -296,10 +297,17 @@ class SumoFile:
 
     async def upload_to_sumo(self, sumo_parent_id, sumoclient, sumo_mode):
         """Upload this file to Sumo"""
-        # We need these included even if returning before blob upload
-        result = {"blob_file_path": self.path, "blob_file_size": self._size}
+        file_size_bytes = get_element(self.metadata, "file.size_bytes")
 
-        self._warn_on_blob_size_mismatch(_get_sumo_logger(sumoclient))
+        # We need these included even if returning before blob upload
+        result = {
+            "blob_file_path": self.path,
+            "file_size_bytes": file_size_bytes,
+        }
+
+        self._warn_on_blob_size_mismatch(
+            file_size_bytes, _get_sumo_logger(sumoclient)
+        )
 
         result["validation"] = await validate(sumo_parent_id, self.metadata)
         if not result["validation"].ok():

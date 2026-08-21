@@ -18,7 +18,7 @@ from fmu.dataio.manifest import get_manifest_path
 from sumo.wrapper import SumoClient
 
 from fmu.sumo import uploader
-from fmu.sumo.uploader._utils import get_field_from_metadata
+from fmu.sumo.uploader._utils import get_element
 from fmu.sumo.uploader.caseondisk import _load_case_metadata
 
 if not sys.platform.startswith("darwin"):
@@ -202,15 +202,13 @@ def _hits_for_case(sumoclient, case_uuid):
 ### TESTS ###
 
 
-def test_get_field_from_metadata(case_metadata):
-    asset_name = get_field_from_metadata(case_metadata, "access.asset.name")
+def test_get_element(case_metadata):
+    asset_name = get_element(case_metadata, "access.asset.name")
     assert asset_name == "Drogon"
 
 
-def test_get_field_from_metadata_invalid_field(case_metadata):
-    non_existent_field = get_field_from_metadata(
-        case_metadata, "non.existing.field"
-    )
+def test_get_element_invalid_field(case_metadata):
+    non_existent_field = get_element(case_metadata, "non.existing.field")
     assert non_existent_field is None
 
 

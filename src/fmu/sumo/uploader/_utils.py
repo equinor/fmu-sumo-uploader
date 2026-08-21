@@ -25,23 +25,23 @@ def sanitize_datetimes(data):
     return data
 
 
-def get_field_from_metadata(metadata: dict, field_path: str):
-    """Get field from metadata.
+def get_element(dictionary: dict, element: str):
+    """Get an element from a nested dictionary.
 
-    Given a metadata dictionary and a dot-separated field path,
-    e.g. 'fmu.case.uuid', traverse the nested dictionary and return the value
-    of the field if it exists, else return None.
+    Given a nested dictionary and a dot-separated string representing
+    an element, e.g. 'fmu.case.uuid', traverse the dictionary and
+    return the value of the element if it exists, else return None.
 
-    Currently, the function does not support fields paths that contains lists,
+    Currently, the function does not support elements that contain lists,
     e.g. 'masterdata.smda.fields[0].name'. In this case, the function will
-    return None, since the field 'fields[0]' does not exist in the dictionary.
+    return None, since the element 'fields[0]' does not exist in the dictionary.
     """
 
-    fields = field_path.split(".")
-    value = metadata
+    keys = element.split(".")
+    value = dictionary
 
-    for field in fields:
-        if not isinstance(value, dict) or field not in value:
+    for key in keys:
+        if not isinstance(value, dict) or key not in value:
             return None
-        value = value[field]
+        value = value[key]
     return value

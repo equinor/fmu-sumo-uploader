@@ -95,7 +95,7 @@ class CaseOnDisk(SumoCase):
         self._sumo_logger.setLevel(logging.INFO)
         # Avoid that logging to sumo-server also is visible in local logging:
         self._sumo_logger.propagate = False
-        self._sumo_logger.info(
+        logger.info(
             "Initializing Sumo upload for case with sumo_parent_id: "
             + str(self._sumo_parent_id),
             extra={"objectUuid": self._sumo_parent_id},
