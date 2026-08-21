@@ -9,15 +9,17 @@ import os
 import statistics
 import time
 import warnings
+from datetime import UTC, datetime
 
 from fmu.dataio.manifest import get_manifest_path
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
 from fmu.sumo.uploader._utils import (
-    get_field_from_metadata,
+    get_element,
     sanitize_datetimes,
 )
+from fmu.sumo.uploader._version import version as uploader_version
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -38,14 +40,15 @@ class SumoCase:
         self.sumoclient = sumoclient
         self.case_metadata = sanitize_datetimes(case_metadata)
         self.casepath = casepath
-        self._fmu_case_uuid = get_field_from_metadata(
-            self.case_metadata, "fmu.case.uuid"
+        self._fmu_case_uuid = get_element(self.case_metadata, "fmu.case.uuid")
+        self._ensemble_name = os.environ.get(
+            "_ERT_ENSEMBLE_NAME", "default_ensemble"
         )
-        self._ensemble_uuid = os.environ.get(
-            "_ERT_ENSEMBLE_ID", "default_ensemble"
-        )
-        self._realization_id = int(
-            os.environ.get("_ERT_REALIZATION_NUMBER", "0")
+        _ert_realization_number = os.environ.get("_ERT_REALIZATION_NUMBER")
+        self._realization_id = (
+            int(_ert_realization_number)
+            if _ert_realization_number is not None
+            else None
         )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
@@ -99,12 +102,12 @@ class SumoCase:
         rejected_uploads = []
         files_to_upload = list(self.files)
 
-        _t0 = time.perf_counter()
-
         logger.debug("files_to_upload: %s", files_to_upload)
 
         sumoclient = self.sumoclient.client_for_case(self._sumo_parent_id)
 
+        start_time = datetime.now(tz=UTC).isoformat()
+        _t0 = time.perf_counter()
         upload_results = upload_files(
             files_to_upload,
             self._sumo_parent_id,
@@ -112,6 +115,9 @@ class SumoCase:
             self.sumo_mode,
             self.config_path,
         )
+        _dt = time.perf_counter() - _t0
+        end_time = datetime.now(tz=UTC).isoformat()
+
         ok_uploads += upload_results.get("ok_uploads", [])
         failed_uploads += upload_results.get("failed_uploads", [])
         rejected_uploads += upload_results.get("rejected_uploads", [])
@@ -131,8 +137,6 @@ class SumoCase:
                 "register=True. This should not be done in the FMU context."
             )
 
-        _dt = time.perf_counter() - _t0
-
         md_retries, blob_retries = _get_retries(
             ok_uploads, failed_uploads, rejected_uploads
         )
@@ -141,7 +145,7 @@ class SumoCase:
             self._sumo_logger.warning(
                 "UploadRetries: Some uploads required retries. Case %s, Ensemble %s, Realization %d. Metadata retries: %d, Blob retries: %d",
                 self._fmu_case_uuid,
-                self._ensemble_uuid,
+                self._ensemble_name,
                 self._realization_id,
                 len(md_retries),
                 len(blob_retries),
@@ -155,8 +159,12 @@ class SumoCase:
             )
 
         upload_statistics = ""
+        total_bytes_uploaded = 0
         if len(ok_uploads) > 0:
             upload_statistics = _calculate_upload_stats(ok_uploads)
+            total_bytes_uploaded = sum(
+                u["file_size_bytes"] for u in ok_uploads
+            )
             logger.info(upload_statistics)
             self._update_sumo_uploads()
 
@@ -192,25 +200,38 @@ class SumoCase:
         logger.info(f"Wall time: {_dt:.2f} sec")
         logger.info(f"Sumo mode: {self.sumo_mode}")
 
+        nodename = os.uname().nodename
+        nameparts = nodename.split(".", 1)
+        host_name = nameparts[0]
+        domain_name = nameparts[1] if len(nameparts) > 1 else ""
+
+        bytes_per_sec = round(total_bytes_uploaded / _dt, 2) if _dt > 0 else 0
+
         details = {
             "case_uuid": self._fmu_case_uuid,
-            "ert_ensemble_uuid": self._ensemble_uuid,
-            "realization_id": self._realization_id,
-            "asset": get_field_from_metadata(
-                self.case_metadata, "access.asset.name"
-            ),
+            "ert_ensemble_name": self._ensemble_name,
+            "asset": get_element(self.case_metadata, "access.asset.name"),
+            "host_name": host_name,
+            "domain_name": domain_name,
+            "uploader_version": uploader_version,
             "total_files_count": len(files_to_upload),
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
             "rejected_files": len(rejected_uploads),
+            "total_bytes_uploaded": total_bytes_uploaded,
+            "start_time": start_time,
+            "end_time": end_time,
             "wall_time_seconds": _dt,
             "upload_statistics": upload_statistics,
+            "upload_rate_bytes_per_sec": bytes_per_sec,
             "sumo_mode": self.sumo_mode,
         }
 
+        if self._realization_id is not None:
+            details["realization_id"] = self._realization_id
+
         self._sumo_logger.info(
-            "Upload completed for case with fmu_case_uuid: %s",
-            self._fmu_case_uuid,
+            "Upload summary",
             extra={"objectUuid": self._fmu_case_uuid, "details": details},
         )
 
@@ -259,7 +280,6 @@ def _get_log_msg(sumo_parent_id, status):
 def _get_stats(values):
     return (
         {
-            "count": len(values),
             "mean": statistics.mean(values),
             "max": max(values),
             "min": min(values),
