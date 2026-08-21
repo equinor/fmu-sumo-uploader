@@ -120,7 +120,7 @@ async def _upload_files(
     iter_num = get_ert_env("ITERATION_NUMBER")
 
     # Realization context
-    if real_num:
+    if real_num is not None:
         try:
             maybe_upload_realization_and_ensemble(
                 sumoclient, files[0].metadata
@@ -140,7 +140,7 @@ async def _upload_files(
             logger.warning(f"Metadata upload exception {err} {type(err)}")
 
     # Ensemble context. Doesn't have a realisation number
-    elif iter_num:
+    elif iter_num is not None:
         try:
             maybe_upload_ensemble(sumoclient, files[0].metadata)
         except httpx.HTTPStatusError as err:
