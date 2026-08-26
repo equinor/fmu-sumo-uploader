@@ -1,4 +1,5 @@
 import datetime
+import os
 from typing import overload
 
 
@@ -45,3 +46,11 @@ def get_element(dictionary: dict, element: str):
             return None
         value = value[key]
     return value
+
+
+def get_host_and_domain_names():
+    nodename = os.uname().nodename
+    nameparts = nodename.split(".", 1)
+    host_name = nameparts[0]
+    domain_name = nameparts[1] if len(nameparts) > 1 else ""
+    return host_name, domain_name
