@@ -17,6 +17,7 @@ from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._upload_files import upload_files
 from fmu.sumo.uploader._utils import (
     get_element,
+    get_host_and_domain_names,
     sanitize_datetimes,
 )
 from fmu.sumo.uploader._version import version as uploader_version
@@ -200,11 +201,7 @@ class SumoCase:
         logger.info(f"Wall time: {_dt:.2f} sec")
         logger.info(f"Sumo mode: {self.sumo_mode}")
 
-        nodename = os.uname().nodename
-        nameparts = nodename.split(".", 1)
-        host_name = nameparts[0]
-        domain_name = nameparts[1] if len(nameparts) > 1 else ""
-
+        host_name, domain_name = get_host_and_domain_names()
         bytes_per_sec = round(total_bytes_uploaded / _dt, 2) if _dt > 0 else 0
 
         details = {

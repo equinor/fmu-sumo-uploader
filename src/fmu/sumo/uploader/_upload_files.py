@@ -11,6 +11,7 @@ from copy import deepcopy
 import httpx
 
 from fmu.sumo.uploader._logger import get_uploader_logger
+from fmu.sumo.uploader._utils import get_host_and_domain_names
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -91,10 +92,8 @@ def maybe_upload_ensemble(sumoclient, base_metadata):
 
 
 def _get_batch_size():
-    nodename = os.uname().nodename
-    nameparts = nodename.split(".", 1)
-    domainname = nameparts[1] if len(nameparts) > 1 else ""
-    if domainname in ["rio.statoil.no", "stjohn.statoil.no"]:
+    _, domain_name = get_host_and_domain_names()
+    if domain_name in ["rio.statoil.no", "stjohn.statoil.no"]:
         batch_size = 1
     else:
         batch_size = 10
