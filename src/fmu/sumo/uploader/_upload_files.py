@@ -117,7 +117,6 @@ async def _upload_files(
 
     # Use environment variables to get context
     real_num = get_ert_env("REALIZATION_NUMBER")
-    iter_num = get_ert_env("ITERATION_NUMBER")
     ensemble_id = get_ert_env("ENSEMBLE_ID")
 
     # Realization context
@@ -145,7 +144,7 @@ async def _upload_files(
     # in the workflow. For example, when this function is called before
     # simulation start, the iteration number env var is not yet defined.
     # Ensembles always have an ensemble_id env var.
-    elif iter_num is not None or ensemble_id is not None:
+    elif ensemble_id is not None:
         try:
             maybe_upload_ensemble(sumoclient, files[0].metadata)
         except httpx.HTTPStatusError as err:
