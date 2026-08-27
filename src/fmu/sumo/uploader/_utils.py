@@ -2,6 +2,8 @@ import datetime
 import os
 from typing import overload
 
+import yaml
+
 
 @overload
 def sanitize_datetimes(data: dict) -> dict: ...
@@ -54,3 +56,22 @@ def get_host_and_domain_names():
     host_name = nameparts[0]
     domain_name = nameparts[1] if len(nameparts) > 1 else ""
     return host_name, domain_name
+
+
+def parse_yaml(path):
+    """From path, parse file as yaml, return data"""
+
+    with open(path, "r") as stream:
+        data = yaml.safe_load(stream)
+    return data
+
+
+def file_to_byte_string(path):
+    """
+    Given an path to a file, read as bytes, return byte string.
+    """
+
+    with open(path, "rb") as f:
+        byte_string = f.read()
+
+    return byte_string

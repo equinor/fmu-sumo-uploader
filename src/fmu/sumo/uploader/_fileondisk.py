@@ -57,7 +57,7 @@ class FileOnDisk(SumoFile):
             metadata_path if metadata_path else _path_to_yaml_path(path)
         )
         self.path = path
-        self.metadata = parse_yaml(self.metadata_path)
+        metadata = parse_yaml(self.metadata_path)
 
         self._size = os.path.getsize(self.path)
 
@@ -66,15 +66,17 @@ class FileOnDisk(SumoFile):
 
         self.sumo_object_id = None
 
-        self.metadata["_sumo"] = {}
+        metadata["_sumo"] = {}
 
         self.byte_string = file_to_byte_string(path)
-        self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
+        metadata["_sumo"]["blob_size"] = len(self.byte_string)
         digester = hashlib.md5(self.byte_string)
-        self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
+        metadata["_sumo"]["blob_md5"] = base64.b64encode(
             digester.digest()
         ).decode("utf-8")
-        self.metadata["_sumo"]["uploader"] = version
+        metadata["_sumo"]["uploader"] = version
+
+        super().__init__(metadata)
 
     def __repr__(self):
         if not self.metadata:
