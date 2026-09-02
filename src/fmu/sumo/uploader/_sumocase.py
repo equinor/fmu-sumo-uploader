@@ -10,6 +10,7 @@ import statistics
 import time
 import warnings
 from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
 
 from fmu.dataio.manifest import get_manifest_path
 
@@ -20,7 +21,11 @@ from fmu.sumo.uploader._utils import (
     get_host_and_domain_names,
     sanitize_datetimes,
 )
-from fmu.sumo.uploader._version import version as uploader_version
+
+try:
+    uploader_version = version("fmu-sumo-uploader")
+except PackageNotFoundError:
+    uploader_version = "0.0.0"
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
