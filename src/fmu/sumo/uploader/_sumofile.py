@@ -85,7 +85,7 @@ def upload_response(func):
             return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
         except httpx.HTTPStatusError as err:
             err = err.with_traceback(None)
-            logger.error("HTTP status error during upload: {err} {type(err)}")
+            logger.error(f"HTTP status error during upload: {err} {type(err)}")
             return ResponseInfo(
                 None,
                 str(err),
