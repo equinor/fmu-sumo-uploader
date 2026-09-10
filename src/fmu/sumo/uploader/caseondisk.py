@@ -182,8 +182,9 @@ class CaseOnDisk(SumoCase):
                 if err.response.status_code == 401:
                     print(
                         "\033[31m"
-                        "Please verify that you are logged in to Sumo, "
-                        "by running sumo_login in a Unix terminal window"
+                        "Please verify that you completed the Equinor "
+                        "Azure login in the browser window that was "
+                        "opened, before the login request expired."
                         " \033[0m"
                     )
                 if err.response.status_code == 403:
