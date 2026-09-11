@@ -179,7 +179,7 @@ class SumoCase:
                 f"\n\n{len(rejected_uploads)} files rejected by Sumo. First 5 rejected files:"
             )
 
-            for u in rejected_uploads[0:4]:
+            for u in rejected_uploads[:5]:
                 logger.info(_get_log_msg(self._sumo_parent_id, u))
                 self._sumo_logger.error(
                     _get_log_msg(self._sumo_parent_id, u),
@@ -191,7 +191,7 @@ class SumoCase:
                 f"\n\n{len(failed_uploads)} files failed by Sumo. First 5 failed files:"
             )
 
-            for u in failed_uploads[0:4]:
+            for u in failed_uploads[:5]:
                 logger.info(_get_log_msg(self._sumo_parent_id, u))
                 self._sumo_logger.error(
                     _get_log_msg(self._sumo_parent_id, u),
