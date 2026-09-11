@@ -11,6 +11,7 @@ from copy import deepcopy
 import httpx
 
 from fmu.sumo.uploader._logger import get_uploader_logger
+from fmu.sumo.uploader._sumofile import SumoFile
 from fmu.sumo.uploader._utils import get_host_and_domain_names
 
 # pylint: disable=C0103 # allow non-snake case variable names
@@ -101,7 +102,7 @@ def _get_batch_size():
 
 
 async def _upload_files(
-    files,
+    files: list[SumoFile],
     sumoclient,
     sumo_parent_id,
     sumo_mode="copy",
@@ -164,7 +165,7 @@ async def _upload_files(
     for i in range(0, len(files), batch_size):
         batch = files[i : i + batch_size]
         tasks = [
-            _upload_file((file, sumoclient, sumo_parent_id, sumo_mode))
+            _upload_file(file, sumoclient, sumo_parent_id, sumo_mode)
             for file in batch
         ]
         results = await asyncio.gather(*tasks)
@@ -173,10 +174,8 @@ async def _upload_files(
     return all_results
 
 
-async def _upload_file(args):
+async def _upload_file(file: SumoFile, sumoclient, sumo_parent_id, sumo_mode):
     """Upload a file"""
-
-    file, sumoclient, sumo_parent_id, sumo_mode = args
 
     result = await file.upload_to_sumo(
         sumoclient=sumoclient,
@@ -184,13 +183,13 @@ async def _upload_file(args):
         sumo_mode=sumo_mode,
     )
 
-    result["file"] = file
+    result.file = file
 
     return result
 
 
 def upload_files(
-    files: list,
+    files: list[SumoFile],
     sumo_parent_id: str,
     sumoclient,
     sumo_mode="copy",

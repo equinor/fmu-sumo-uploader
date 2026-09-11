@@ -15,12 +15,13 @@ dependencies = [
   "fmu-dataio>=2.26.0",
   "httpx>=0.24.1",
   "OpenVDS; sys_platform != 'darwin'",
+  "pydantic>=2",
   "ert; sys_platform != 'win32'",
   "tenacity",
 ]
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-asyncio", "pre-commit"]
+dev = ["ruff", "mypy", "pytest", "pytest-asyncio", "pre-commit"]
 test = ["pytest", "pytest-asyncio","pytest-timeout", "fmu-sumo"]
 
 docs = [
@@ -52,7 +53,6 @@ line-length = 79
 
 [tool.ruff.lint]
 ignore = ["E501", "BLE001", "TRY002", "EXE001"]
-
 extend-select = [
   "C4",  # Flake8-comprehensions
   "I",   # isort
@@ -65,3 +65,5 @@ extend-select = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+
+[tool.mypy]

@@ -168,9 +168,7 @@ class SumoCase:
         total_bytes_uploaded = 0
         if len(ok_uploads) > 0:
             upload_statistics = _calculate_upload_stats(ok_uploads)
-            total_bytes_uploaded = sum(
-                u["file_size_bytes"] for u in ok_uploads
-            )
+            total_bytes_uploaded = sum(u.file_size_bytes for u in ok_uploads)
             logger.info(upload_statistics)
             self._update_sumo_uploads()
 
@@ -267,15 +265,15 @@ def _get_log_msg(sumo_parent_id, status):
     obj = {
         "upload_issue": {
             "case_uuid": str(sumo_parent_id),
-            "filepath": str(status.get("blob_file_path")),
+            "filepath": str(status.blob_file_path),
         }
     }
-    if "blob_upload" in status:
-        obj["upload_issue"]["blob"] = status["blob_upload"].errinfo()
-    elif "metadata_upload" in status:
-        obj["upload_issue"]["metadata"] = status["metadata_upload"].errinfo()
-    elif "validation" in status:
-        obj["upload_issue"]["validation"] = status["validation"].errinfo()
+    if status.blob_upload is not None:
+        obj["upload_issue"]["blob"] = status.blob_upload.errinfo()
+    elif status.metadata_upload is not None:
+        obj["upload_issue"]["metadata"] = status.metadata_upload.errinfo()
+    elif status.validation is not None:
+        obj["upload_issue"]["validation"] = status.validation.errinfo()
     return json.dumps(obj)
 
 
@@ -299,10 +297,10 @@ def _calculate_upload_stats(uploads):
     Given a list of results from file upload, calculate and return
     timing statistics for uploads."""
 
-    blob_upload_times = [u["blob_upload"].elapsed for u in uploads]
-    blob_upload_retries = [u["blob_upload"].retries for u in uploads]
-    metadata_upload_times = [u["metadata_upload"].elapsed for u in uploads]
-    metadata_upload_retries = [u["metadata_upload"].retries for u in uploads]
+    blob_upload_times = [u.blob_upload.elapsed for u in uploads]
+    blob_upload_retries = [u.blob_upload.retries for u in uploads]
+    metadata_upload_times = [u.metadata_upload.elapsed for u in uploads]
+    metadata_upload_retries = [u.metadata_upload.retries for u in uploads]
 
     stats = {
         "blob": {
@@ -325,14 +323,14 @@ def _get_retries(ok_uploads, failed_uploads, rejected_uploads):
     metadata and blob uploads."""
 
     md_retries = [
-        u["metadata_upload"].retries
+        u.metadata_upload.retries
         for u in ok_uploads + failed_uploads + rejected_uploads
-        if "metadata_upload" in u
+        if u.metadata_upload is not None
     ]
     blob_retries = [
-        u["blob_upload"].retries
+        u.blob_upload.retries
         for u in ok_uploads + failed_uploads + rejected_uploads
-        if "blob_upload" in u
+        if u.blob_upload is not None
     ]
 
     return [r for r in md_retries if r > 0], [r for r in blob_retries if r > 0]
