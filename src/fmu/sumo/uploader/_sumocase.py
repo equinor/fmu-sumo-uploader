@@ -164,7 +164,7 @@ class SumoCase:
                 },
             )
 
-        upload_statistics = ""
+        upload_statistics = {}
         total_bytes_uploaded = 0
         if len(ok_uploads) > 0:
             upload_statistics = _calculate_upload_stats(ok_uploads)
