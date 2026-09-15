@@ -209,7 +209,7 @@ class SumoCase:
         host_name, domain_name = get_host_and_domain_names()
         bytes_per_sec = round(total_bytes_uploaded / _dt, 2) if _dt > 0 else 0
 
-        details = {
+        details_mapping = {
             "case_uuid": self._fmu_case_uuid,
             "ert_ensemble_name": self._ensemble_name,
             "asset": get_element(self.case_metadata, "access.asset.name"),
@@ -227,10 +227,12 @@ class SumoCase:
             "upload_statistics": upload_statistics,
             "upload_rate_bytes_per_sec": bytes_per_sec,
             "sumo_mode": self.sumo_mode,
+            "realization_id": self._realization_id,
         }
 
-        if self._realization_id is not None:
-            details["realization_id"] = self._realization_id
+        details = {
+            k: v for k, v in details_mapping.items() if not _is_empty(v)
+        }
 
         self._sumo_logger.info(
             "Upload summary",
@@ -259,6 +261,16 @@ class SumoCase:
         logger.info(
             f"Sumo log {uploads_path} updated with new entry: {new_entry}"
         )
+
+
+def _is_empty(value):
+    """Return True for None or an empty str/dict/list/tuple/set, but not for 0."""
+
+    if value is None:
+        return True
+    if isinstance(value, (str, dict, list, tuple, set)):
+        return len(value) == 0
+    return False
 
 
 def _get_log_msg(sumo_parent_id, status):
