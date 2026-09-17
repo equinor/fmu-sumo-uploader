@@ -1,0 +1,27 @@
+name: Type check
+
+on:
+  pull_request:
+  push: { branches: [main] }
+
+jobs:
+  type-check:
+    name: Run mypy type checker
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Installing dependencies
+        run: pip install mypy
+
+      - name: Run mypy type check
+        run: mypy src tests

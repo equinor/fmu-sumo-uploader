@@ -13,10 +13,13 @@ import subprocess
 import sys
 import time
 import warnings
+from collections.abc import Awaitable, Callable
+from typing import Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import tenacity
 from azure.storage.blob import BlobClient, ContentSettings
+from pydantic import BaseModel, ConfigDict
 from sumo.wrapper import RetryStrategy
 
 from fmu.sumo.uploader._logger import get_uploader_logger
@@ -27,6 +30,9 @@ _max_single_put_size = 4 * 1024 * 1024
 # pylint: disable=C0103 # allow non-snake case variable names
 
 logger = get_uploader_logger()
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 def _get_sumo_logger(sumoclient):
@@ -68,11 +74,25 @@ class ResponseInfo:
         }
 
 
-def upload_response(func):
+class UploadResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    blob_file_path: str
+    file_size_bytes: int | None
+    status: Literal["ok", "failed", "rejected"] = "failed"
+    validation: ResponseInfo | None = None
+    metadata_upload: ResponseInfo | None = None
+    blob_upload: ResponseInfo | None = None
+    file: Any | None = None
+
+
+def upload_response(
+    func: Callable[P, Awaitable[T]],
+) -> Callable[P, Awaitable[ResponseInfo]]:
     """Decorator to wrap upload functions and return a consistent response format"""
 
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseInfo:
         t0 = time.perf_counter()
         try:
             result = await func(*args, **kwargs)
@@ -253,8 +273,8 @@ async def upload_seismic_blob(object_id, path, metadata, blob_url):
         else:
             # Outer code expects and interprets http error codes
             logger.warning(
-                "Seismic upload failed with returncode "
-                + cmd_result.returncode,
+                "Seismic upload failed with returncode %s",
+                cmd_result.returncode,
             )
             raise Exception(
                 "FAILED SEGY upload as OpenVDS command " + cmd_result.stderr
@@ -271,8 +291,8 @@ async def upload_seismic_blob(object_id, path, metadata, blob_url):
 
 
 class SumoFile:
-    def __init__(self):
-        return
+    def __init__(self, metadata: dict):
+        self.metadata = metadata
 
     def _warn_on_blob_size_mismatch(self, file_size_bytes, sumo_logger):
         sumo_blob_size = get_element(self.metadata, "_sumo.blob_size")
@@ -295,23 +315,28 @@ class SumoFile:
         response = await sumoclient.delete_async(path=path)
         return response
 
-    async def upload_to_sumo(self, sumo_parent_id, sumoclient, sumo_mode):
+    async def upload_to_sumo(
+        self, sumo_parent_id, sumoclient, sumo_mode
+    ) -> UploadResult:
         """Upload this file to Sumo"""
-        file_size_bytes = get_element(self.metadata, "file.size_bytes")
+        file_size_bytes = cast(
+            "int | None", get_element(self.metadata, "file.size_bytes")
+        )
 
         # We need these included even if returning before blob upload
-        result = {
-            "blob_file_path": self.path,
-            "file_size_bytes": file_size_bytes,
-        }
+        result = UploadResult(
+            blob_file_path=self.path,
+            file_size_bytes=file_size_bytes,
+        )
 
         self._warn_on_blob_size_mismatch(
             file_size_bytes, _get_sumo_logger(sumoclient)
         )
 
-        result["validation"] = await validate(sumo_parent_id, self.metadata)
-        if not result["validation"].ok():
-            result["status"] = "rejected"
+        validation = await validate(sumo_parent_id, self.metadata)
+        result.validation = validation
+        if not validation.ok():
+            result.status = "rejected"
             return result
 
         if is_seismic(self.metadata):
@@ -326,24 +351,25 @@ class SumoFile:
 
         retry_strategy = RetryStrategy(before_sleep=update_retries)
 
-        result["metadata_upload"] = await upload_metadata(
+        metadata_upload = await upload_metadata(
             sumoclient,
             sumo_parent_id,
             self.metadata,
             retry_strategy=retry_strategy,
         )
-        result["metadata_upload"].retries = retries[0]
-        if not result["metadata_upload"].ok():
-            result["status"] = (
+        result.metadata_upload = metadata_upload
+        metadata_upload.retries = retries[0]
+        if not metadata_upload.ok():
+            result.status = (
                 "rejected"
-                if result["metadata_upload"].statuscode in range(400, 500)
+                if metadata_upload.statuscode in range(400, 500)
                 else "failed"
             )
             return result
 
-        self.sumo_object_id = result["metadata_upload"].result.get("objectid")
+        self.sumo_object_id = metadata_upload.result.get("objectid")
 
-        blob_url = result["metadata_upload"].result.get("blob_url")
+        blob_url = metadata_upload.result.get("blob_url")
 
         # UPLOAD BLOB
 
@@ -351,8 +377,11 @@ class SumoFile:
             logger.info(
                 "This is a seismic file, will attempt to upload as OpenVDS"
             )
-            result["blob_upload"] = await upload_seismic_blob(
-                self.sumo_object_id, self.path, self.metadata, blob_url
+            blob_upload = cast(
+                "ResponseInfo",
+                await upload_seismic_blob(
+                    self.sumo_object_id, self.path, self.metadata, blob_url
+                ),
             )
         else:  # non-seismic blob
             retries = [0]  # mutable object to store retry count in closure
@@ -374,20 +403,21 @@ class SumoFile:
                 retry_error_callback=return_last_value,
                 before_sleep=update_retries,
             )
-            result["blob_upload"] = await upload_blob(
+            blob_upload = await upload_blob(
                 blob_url, self.byte_string, retryer
             )
-            result["blob_upload"].retries = retries[0]
+            blob_upload.retries = retries[0]
 
-        if not result["blob_upload"].ok():
+        result.blob_upload = blob_upload
+        if not blob_upload.ok():
             logger.warning(
                 "Deleting metadata since data-upload failed on object uuid "
                 + self.sumo_object_id
             )
-            result["status"] = "failed"
+            result.status = "failed"
             await self._delete_metadata(sumoclient, self.sumo_object_id)
         else:
-            result["status"] = "ok"
+            result.status = "ok"
             if sumo_mode.lower() == "move":
                 file_path = self.path
                 metadatafile_path = _path_to_yaml_path(file_path)
