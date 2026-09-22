@@ -164,7 +164,7 @@ async def _upload_files(
     for i in range(0, len(files), batch_size):
         batch = files[i : i + batch_size]
         tasks = [
-            _upload_file((file, sumoclient, sumo_parent_id, sumo_mode))
+            _upload_file(file, sumoclient, sumo_parent_id, sumo_mode)
             for file in batch
         ]
         results = await asyncio.gather(*tasks)
@@ -173,10 +173,8 @@ async def _upload_files(
     return all_results
 
 
-async def _upload_file(args):
+async def _upload_file(file, sumoclient, sumo_parent_id, sumo_mode):
     """Upload a file"""
-
-    file, sumoclient, sumo_parent_id, sumo_mode = args
 
     result = await file.upload_to_sumo(
         sumoclient=sumoclient,
