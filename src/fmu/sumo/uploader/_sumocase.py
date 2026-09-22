@@ -207,7 +207,12 @@ class SumoCase:
         logger.info(f"Sumo mode: {self.sumo_mode}")
 
         host_name, domain_name = get_host_and_domain_names()
-        bytes_per_sec = round(total_bytes_uploaded / _dt, 2) if _dt > 0 else 0
+        # Per-file upload rate
+        bytes_per_sec = (
+            round(total_bytes_uploaded / _dt / len(ok_uploads), 2)
+            if _dt > 0 and ok_uploads
+            else 0
+        )
 
         details_mapping = {
             "case_uuid": self._fmu_case_uuid,
