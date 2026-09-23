@@ -55,6 +55,7 @@ namespace_packages = true
 explicit_package_bases = true
 platform = "linux"
 exclude = ["src/fmu/sumo/uploader/_version\\.py$"]
+check_untyped_defs = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true

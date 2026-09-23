@@ -26,6 +26,8 @@ from fmu.sumo.uploader._utils import (
 )
 
 if TYPE_CHECKING:
+    import logging
+
     from fmu.sumo.uploader._sumofile import SumoFile
 
 try:
@@ -39,6 +41,15 @@ logger = get_uploader_logger()
 
 
 class SumoCase:
+    # Declared, but deliberately not assigned: this is set by the
+    # subclasses, and a default here would mask an unset attribute.
+    _sumo_logger: logging.Logger
+
+    @property
+    def files(self) -> list[SumoFile]:
+        """Return the files. Implemented by subclasses."""
+        raise NotImplementedError
+
     def __init__(
         self,
         case_metadata: dict,

@@ -194,13 +194,13 @@ class SumoUpload(ErtScript):
 
         logger.debug("Calling run() on SumoUpload")
         parser = _get_parser()
-        args = parser.parse_args(args)
-        _check_arguments(args)
+        parsed_args = parser.parse_args(args)
+        _check_arguments(parsed_args)
         sumo_upload_main(
-            casepath=args.casepath,
-            metadata_path=args.metadata_path,
-            config_path=args.config_path,
-            sumo_mode=args.sumo_mode,
+            casepath=parsed_args.casepath,
+            metadata_path=parsed_args.metadata_path,
+            config_path=parsed_args.config_path,
+            sumo_mode=parsed_args.sumo_mode,
             verbosity=logging.WARNING,
         )
 

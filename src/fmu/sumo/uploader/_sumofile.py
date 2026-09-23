@@ -4,6 +4,8 @@ Base class for FileOnJob and FileOnDisk classes.
 
 """
 
+from __future__ import annotations
+
 import functools
 import logging
 import math
@@ -13,6 +15,7 @@ import subprocess
 import sys
 import time
 import warnings
+from typing import Any
 
 import httpx
 import tenacity
@@ -253,8 +256,8 @@ async def upload_seismic_blob(object_id, path, metadata, blob_url):
         else:
             # Outer code expects and interprets http error codes
             logger.warning(
-                "Seismic upload failed with returncode "
-                + cmd_result.returncode,
+                "Seismic upload failed with returncode %s",
+                cmd_result.returncode,
             )
             raise Exception(
                 "FAILED SEGY upload as OpenVDS command " + cmd_result.stderr
@@ -271,6 +274,14 @@ async def upload_seismic_blob(object_id, path, metadata, blob_url):
 
 
 class SumoFile:
+    # Declared, but deliberately not assigned: these are set by the
+    # subclasses, and a default here would mask an unset attribute.
+    metadata: dict[str, Any]
+    byte_string: bytes
+    path: str
+    sumo_object_id: str | None
+    _size: int | None
+
     def __init__(self):
         return
 
