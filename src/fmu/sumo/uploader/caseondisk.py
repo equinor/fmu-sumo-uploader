@@ -1,10 +1,13 @@
 """Objectify an FMU case (results) as it appears on the disk."""
 
+from __future__ import annotations
+
 import logging
 import os
 import time
 import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import yaml
@@ -12,6 +15,9 @@ import yaml
 from fmu.sumo.uploader._fileondisk import FileOnDisk
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumocase import SumoCase
+
+if TYPE_CHECKING:
+    from fmu.sumo.uploader._sumofile import SumoFile
 
 logger = get_uploader_logger()
 
@@ -61,13 +67,13 @@ class CaseOnDisk(SumoCase):
 
     def __init__(
         self,
-        case_metadata_path: str,
-        sumoclient,
-        verbosity=logging.WARNING,
-        sumo_mode="copy",
-        config_path="fmuconfig/output/global_variables.yml",
-        casepath=None,
-    ):
+        case_metadata_path: str | Path,
+        sumoclient: Any,
+        verbosity: int | str = logging.WARNING,
+        sumo_mode: str = "copy",
+        config_path: str = "fmuconfig/output/global_variables.yml",
+        casepath: str | Path | None = None,
+    ) -> None:
         """Initialize CaseOnDisk.
 
         Args:
@@ -101,7 +107,7 @@ class CaseOnDisk(SumoCase):
             extra={"objectUuid": self._sumo_parent_id},
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         s = f"{self.__class__}, {len(self._files)} files."
 
         if self._sumo_parent_id is not None:
@@ -111,25 +117,25 @@ class CaseOnDisk(SumoCase):
 
         return s
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.__str__)
 
     @property
-    def sumo_parent_id(self):
+    def sumo_parent_id(self) -> str:
         """Return the sumo parent ID"""
         return self._sumo_parent_id
 
     @property
-    def fmu_case_uuid(self):
+    def fmu_case_uuid(self) -> str:
         """Return the fmu_case_uuid"""
         return self._fmu_case_uuid
 
     @property
-    def files(self):
+    def files(self) -> list[SumoFile]:
         """Return the files"""
         return self._files
 
-    def add_files(self):
+    def add_files(self) -> None:
         """Add files to the case, based on dataio export manifest file"""
 
         file_paths = self._find_file_paths()
@@ -143,7 +149,7 @@ class CaseOnDisk(SumoCase):
             except Exception as err:
                 warnings.warn(f"No metadata, skipping file: {err}")
 
-    def register(self):
+    def register(self) -> str:
         """Register this case on Sumo.
 
         Assumptions: If registering an already existing case, it will be overwritten.
@@ -200,7 +206,7 @@ class CaseOnDisk(SumoCase):
             warnings.warn(error_string)
             return "0"
 
-    def _upload_case_metadata(self, case_metadata: dict):
+    def _upload_case_metadata(self, case_metadata: dict[str, Any]) -> str:
         """Upload case metadata to Sumo."""
 
         response = self.sumoclient.post(path="/objects", json=case_metadata)
@@ -209,7 +215,7 @@ class CaseOnDisk(SumoCase):
 
         return returned_object_id
 
-    def _find_file_paths(self):
+    def _find_file_paths(self) -> list[str]:
         """Find files and return as list of FileOnDisk instances."""
 
         manifest = self._load_export_manifest()
@@ -231,7 +237,11 @@ class CaseOnDisk(SumoCase):
 
         return files
 
-    def _get_next_index(self, manifest, sumo_uploads):
+    def _get_next_index(
+        self,
+        manifest: list[dict[str, Any]],
+        sumo_uploads: list[dict[str, Any]],
+    ) -> int:
         "Determine the start uploading index in manifest"
 
         if not sumo_uploads or not manifest:
@@ -252,7 +262,7 @@ class CaseOnDisk(SumoCase):
         return 0
 
 
-def _load_case_metadata(case_metadata_path: Path) -> dict:
+def _load_case_metadata(case_metadata_path: Path) -> dict[str, Any]:
     """Load the case metadata."""
 
     if not case_metadata_path.is_file():

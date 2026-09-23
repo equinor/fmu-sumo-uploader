@@ -7,14 +7,15 @@ import logging
 import os
 import warnings
 from pathlib import Path
+from typing import Any
 
 import tenacity as tn
 from ert.plugins.plugin_manager import hook_implementation
 
 try:
-    from ert import ErtScript  # type: ignore
+    from ert import ErtScript
 except ModuleNotFoundError:
-    from res.job_queue import ErtScript  # type: ignore
+    from res.job_queue import ErtScript
 
 from sumo.wrapper import SumoClient
 
@@ -102,7 +103,7 @@ def main() -> None:
     stop=tn.stop_after_attempt(6),
     wait=tn.wait_exponential(multiplier=1, exp_base=2),
 )
-def _get_sumo_client(env, client_id):
+def _get_sumo_client(env: str, client_id: str) -> SumoClient:
     return SumoClient(env=env, client_id=client_id)
 
 
@@ -122,6 +123,8 @@ def sumo_upload_main(
     # This should be a temporary solution to be re-evaluated in the future.
 
     sumoclient = None
+    case_metadata_path: Path | None = None
+    e: uploader.CaseOnDisk | None = None
     try:
         # establish the connection to Sumo
         env = os.environ.get("SUMO_ENV", "prod")
@@ -172,7 +175,11 @@ def sumo_upload_main(
                     case_metadata_path,
                     err,
                     type(err),
-                    extra={"objectUuid": e.fmu_case_uuid},
+                    extra={
+                        "objectUuid": e.fmu_case_uuid
+                        if e is not None
+                        else None
+                    },
                 )
             except Exception:
                 logger.warning("Failed logging to exception to Sumo")
@@ -185,7 +192,7 @@ class SumoUpload(ErtScript):
     This is used for the ERT workflow context."""
 
     # pylint: disable=too-few-public-methods
-    def run(self, *args):
+    def run(self, *args: str) -> None:
         # pylint: disable=no-self-use
         """Parse with a simplified command line parser, for ERT only,
         call sumo_upload_main()"""
@@ -194,13 +201,13 @@ class SumoUpload(ErtScript):
 
         logger.debug("Calling run() on SumoUpload")
         parser = _get_parser()
-        args = parser.parse_args(args)
-        _check_arguments(args)
+        parsed_args = parser.parse_args(args)
+        _check_arguments(parsed_args)
         sumo_upload_main(
-            casepath=args.casepath,
-            metadata_path=args.metadata_path,
-            config_path=args.config_path,
-            sumo_mode=args.sumo_mode,
+            casepath=parsed_args.casepath,
+            metadata_path=parsed_args.metadata_path,
+            config_path=parsed_args.config_path,
+            sumo_mode=parsed_args.sumo_mode,
             verbosity=logging.WARNING,
         )
 
@@ -255,7 +262,7 @@ def _get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _check_arguments(args) -> None:
+def _check_arguments(args: argparse.Namespace) -> None:
     """Do sanity check of the input arguments."""
 
     logger.debug("Running check_arguments()")
@@ -296,7 +303,7 @@ def _check_arguments(args) -> None:
 
 
 @hook_implementation
-def legacy_ertscript_workflow(config):
+def legacy_ertscript_workflow(config: Any) -> None:
     """Hook the SumoUpload class into ERT with the name SUMO_UPLOAD,
     and inject documentation"""
     workflow = config.add_workflow(SumoUpload, "SUMO_UPLOAD")

@@ -8,6 +8,7 @@ pair (technically two files).
 
 import base64
 import hashlib
+from typing import Any
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumofile import SumoFile
@@ -23,7 +24,7 @@ logger = get_uploader_logger()
 
 
 class FileOnJob(SumoFile):
-    def __init__(self, byte_string: str, metadata):
+    def __init__(self, byte_string: bytes, metadata: dict[str, Any]) -> None:
         """
         path (str): Path to file
         metadata_path (str): Path to metadata file. If not provided,

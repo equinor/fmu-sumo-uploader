@@ -4,6 +4,8 @@ Base class for CaseOnDisk class.
 
 """
 
+from __future__ import annotations
+
 import json
 import os
 import statistics
@@ -11,6 +13,7 @@ import time
 import warnings
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
+from typing import TYPE_CHECKING, Any
 
 from fmu.dataio.manifest import get_manifest_path
 
@@ -21,6 +24,13 @@ from fmu.sumo.uploader._utils import (
     get_host_and_domain_names,
     sanitize_datetimes,
 )
+
+if TYPE_CHECKING:
+    import logging
+    from collections.abc import Sequence
+    from pathlib import Path
+
+    from fmu.sumo.uploader._sumofile import SumoFile
 
 try:
     uploader_version = version("fmu-sumo-uploader")
@@ -33,15 +43,24 @@ logger = get_uploader_logger()
 
 
 class SumoCase:
+    # Declared, but deliberately not assigned: this is set by the
+    # subclasses, and a default here would mask an unset attribute.
+    _sumo_logger: logging.Logger
+
+    @property
+    def files(self) -> list[SumoFile]:
+        """Return the files. Implemented by subclasses."""
+        raise NotImplementedError
+
     def __init__(
         self,
-        case_metadata: dict,
-        sumoclient,
-        verbosity="WARNING",
-        sumo_mode="copy",
-        config_path="fmuconfig/output/global_variables.yml",
-        casepath=None,
-    ):
+        case_metadata: dict[str, Any],
+        sumoclient: Any,
+        verbosity: int | str = "WARNING",
+        sumo_mode: str = "copy",
+        config_path: str = "fmuconfig/output/global_variables.yml",
+        casepath: str | Path | None = None,
+    ) -> None:
         logger.setLevel(verbosity)
         self.sumoclient = sumoclient
         self.case_metadata = sanitize_datetimes(case_metadata)
@@ -60,10 +79,10 @@ class SumoCase:
         self._sumo_parent_id = self._fmu_case_uuid
         self.config_path = config_path
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
-        self._files = []
+        self._files: list[SumoFile] = []
         self.sumo_mode = sumo_mode
 
-    def _load_export_manifest(self):
+    def _load_export_manifest(self) -> list[dict[str, Any]]:
         """Load export manifest from file."""
 
         manifest_path = get_manifest_path(self.casepath)
@@ -77,7 +96,7 @@ class SumoCase:
         with open(manifest_path, "r", encoding="utf-8") as file:
             return json.load(file)
 
-    def _load_sumo_uploads(self):
+    def _load_sumo_uploads(self) -> list[dict[str, Any]]:
         """Load sumo uploads log from file."""
 
         uploads_path = (
@@ -90,7 +109,7 @@ class SumoCase:
         with open(uploads_path, "r", encoding="utf-8") as uploads_json:
             return json.load(uploads_json)
 
-    def upload(self):
+    def upload(self) -> list[dict[str, Any]] | dict[str, Any]:
         """Trigger upload of files.
 
         Upload all indexed files. Collect the files that have been uploaded OK, the
@@ -103,9 +122,9 @@ class SumoCase:
             logger.warning(err_msg)
             return {}
 
-        ok_uploads = []
-        failed_uploads = []
-        rejected_uploads = []
+        ok_uploads: list[dict[str, Any]] = []
+        failed_uploads: list[dict[str, Any]] = []
+        rejected_uploads: list[dict[str, Any]] = []
         files_to_upload = list(self.files)
 
         logger.debug("files_to_upload: %s", files_to_upload)
@@ -128,8 +147,11 @@ class SumoCase:
         failed_uploads += upload_results.get("failed_uploads", [])
         rejected_uploads += upload_results.get("rejected_uploads", [])
 
+        # Files rejected during validation never reach the metadata upload
+        # stage, so they have no "metadata_upload" entry.
         if rejected_uploads and any(
-            res.get("metadata_upload").statuscode == 404
+            res.get("metadata_upload") is not None
+            and res["metadata_upload"].statuscode == 404
             for res in rejected_uploads
         ):
             warnings.warn("Case is not registered on Sumo")
@@ -164,7 +186,7 @@ class SumoCase:
                 },
             )
 
-        upload_statistics = {}
+        upload_statistics: dict[str, Any] = {}
         total_bytes_uploaded = 0
         if len(ok_uploads) > 0:
             upload_statistics = _calculate_upload_stats(ok_uploads)
@@ -246,7 +268,7 @@ class SumoCase:
 
         return ok_uploads
 
-    def _update_sumo_uploads(self):
+    def _update_sumo_uploads(self) -> None:
         """Update sumo uploads log."""
 
         manifest = self._load_export_manifest()
@@ -268,7 +290,7 @@ class SumoCase:
         )
 
 
-def _is_empty(value):
+def _is_empty(value: Any) -> bool:
     """Return True for None or an empty str/dict/list/tuple/set, but not for 0."""
 
     if value is None:
@@ -278,7 +300,7 @@ def _is_empty(value):
     return False
 
 
-def _get_log_msg(sumo_parent_id, status):
+def _get_log_msg(sumo_parent_id: str, status: dict[str, Any]) -> str:
     """Return a suitable logging for upload issues."""
 
     obj = {
@@ -296,7 +318,7 @@ def _get_log_msg(sumo_parent_id, status):
     return json.dumps(obj)
 
 
-def _get_stats(values):
+def _get_stats(values: Sequence[float]) -> dict[str, float]:
     return (
         {
             "mean": statistics.mean(values),
@@ -310,7 +332,7 @@ def _get_stats(values):
     )
 
 
-def _calculate_upload_stats(uploads):
+def _calculate_upload_stats(uploads: list[dict[str, Any]]) -> dict[str, Any]:
     """Calculate upload statistics.
 
     Given a list of results from file upload, calculate and return
@@ -335,7 +357,11 @@ def _calculate_upload_stats(uploads):
     return stats
 
 
-def _get_retries(ok_uploads, failed_uploads, rejected_uploads):
+def _get_retries(
+    ok_uploads: list[dict[str, Any]],
+    failed_uploads: list[dict[str, Any]],
+    rejected_uploads: list[dict[str, Any]],
+) -> tuple[list[int], list[int]]:
     """Get retries for uploads.
 
     Given lists of ok, failed and rejected uploads, return the retries for

@@ -6,14 +6,20 @@ pair (technically two files).
 
 """
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import os
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumofile import SumoFile, _path_to_yaml_path
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 try:
     from ._version import version
@@ -25,14 +31,14 @@ except (ImportError, AttributeError):
 logger = get_uploader_logger()
 
 
-def parse_yaml(path):
+def parse_yaml(path: str | Path) -> Any:
     """From path, parse file as yaml, return data"""
     with open(path, "r") as stream:
         data = yaml.safe_load(stream)
     return data
 
 
-def file_to_byte_string(path):
+def file_to_byte_string(path: str | Path) -> bytes:
     """
     Given an path to a file, read as bytes, return byte string.
     """
@@ -44,7 +50,12 @@ def file_to_byte_string(path):
 
 
 class FileOnDisk(SumoFile):
-    def __init__(self, path: str, metadata_path=None, verbosity="WARNING"):
+    def __init__(
+        self,
+        path: str,
+        metadata_path: str | Path | None = None,
+        verbosity: int | str = "WARNING",
+    ) -> None:
         """
         path (str): Path to file
         metadata_path (str): Path to metadata file. If not provided,
@@ -76,7 +87,7 @@ class FileOnDisk(SumoFile):
         ).decode("utf-8")
         self.metadata["_sumo"]["uploader"] = version
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if not self.metadata:
             return f"\n# {self.__class__} \n# No metadata"
 

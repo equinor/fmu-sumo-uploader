@@ -13,5 +13,7 @@ from fmu.sumo.uploader.caseondisk import CaseOnDisk
 
 SumoConnection = sumo.wrapper.SumoClient
 
+__all__ = ["CaseOnDisk", "SumoConnection", "__version__"]
+
 # from fmu.sumo.uploader._fileondisk import FileOnDisk
 # from fmu.sumo.uploader._fileonjob import FileOnJob
