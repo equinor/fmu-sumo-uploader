@@ -4,14 +4,20 @@ The function that uploads files.
 
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 from copy import deepcopy
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._utils import get_host_and_domain_names
+
+if TYPE_CHECKING:
+    from fmu.sumo.uploader._sumofile import SumoFile
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -23,7 +29,7 @@ def get_ert_env(name: str) -> str | None:
     return os.getenv(f"_ERT_{name}")
 
 
-def _base_object_metadata(base_metadata):
+def _base_object_metadata(base_metadata: dict[str, Any]) -> dict[str, Any]:
     """Strip data-object fields to prepare realization/ensemble metadata"""
     metadata = deepcopy(base_metadata)
     del metadata["data"]
@@ -35,7 +41,9 @@ def _base_object_metadata(base_metadata):
     return metadata
 
 
-def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
+def maybe_upload_realization_and_ensemble(
+    sumoclient: Any, base_metadata: dict[str, Any]
+) -> None:
     realization_uuid = base_metadata["fmu"]["realization"]["uuid"]
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
 
@@ -68,7 +76,9 @@ def maybe_upload_realization_and_ensemble(sumoclient, base_metadata):
         sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
 
 
-def maybe_upload_ensemble(sumoclient, base_metadata):
+def maybe_upload_ensemble(
+    sumoclient: Any, base_metadata: dict[str, Any]
+) -> None:
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
 
     hits = sumoclient.post(
@@ -91,7 +101,7 @@ def maybe_upload_ensemble(sumoclient, base_metadata):
         sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
 
 
-def _get_batch_size():
+def _get_batch_size() -> int:
     _, domain_name = get_host_and_domain_names()
     if domain_name in ["rio.statoil.no", "stjohn.statoil.no"]:
         batch_size = 1
@@ -101,12 +111,12 @@ def _get_batch_size():
 
 
 async def _upload_files(
-    files,
-    sumoclient,
-    sumo_parent_id,
-    sumo_mode="copy",
-    config_path="fmuconfig/output/global_variables.yml",
-):
+    files: list[SumoFile],
+    sumoclient: Any,
+    sumo_parent_id: str,
+    sumo_mode: str = "copy",
+    config_path: str = "fmuconfig/output/global_variables.yml",
+) -> list[dict[str, Any]]:
     """
     Upload realization and ensemble objects if they do not exist
     Create threads and call _upload in each thread
@@ -160,7 +170,7 @@ async def _upload_files(
             err = err.with_traceback(None)
             logger.warning(f"Metadata upload exception {err} {type(err)}")
 
-    all_results = []
+    all_results: list[dict[str, Any]] = []
     for i in range(0, len(files), batch_size):
         batch = files[i : i + batch_size]
         tasks = [
@@ -173,7 +183,9 @@ async def _upload_files(
     return all_results
 
 
-async def _upload_file(file, sumoclient, sumo_parent_id, sumo_mode):
+async def _upload_file(
+    file: SumoFile, sumoclient: Any, sumo_parent_id: str, sumo_mode: str
+) -> dict[str, Any]:
     """Upload a file"""
 
     result = await file.upload_to_sumo(
@@ -188,12 +200,12 @@ async def _upload_file(file, sumoclient, sumo_parent_id, sumo_mode):
 
 
 def upload_files(
-    files: list,
+    files: list[SumoFile],
     sumo_parent_id: str,
-    sumoclient,
-    sumo_mode="copy",
-    config_path="fmuconfig/output/global_variables.yml",
-):
+    sumoclient: Any,
+    sumo_mode: str = "copy",
+    config_path: str = "fmuconfig/output/global_variables.yml",
+) -> dict[str, list[dict[str, Any]]]:
     """
     Upload files
 
@@ -213,9 +225,9 @@ def upload_files(
         )
     )
 
-    ok_uploads = []
-    failed_uploads = []
-    rejected_uploads = []
+    ok_uploads: list[dict[str, Any]] = []
+    failed_uploads: list[dict[str, Any]] = []
+    rejected_uploads: list[dict[str, Any]] = []
 
     for r in results:
         status = r.get("status")

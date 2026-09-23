@@ -145,8 +145,11 @@ class SumoCase:
         failed_uploads += upload_results.get("failed_uploads", [])
         rejected_uploads += upload_results.get("rejected_uploads", [])
 
+        # Files rejected during validation never reach the metadata upload
+        # stage, so they have no "metadata_upload" entry.
         if rejected_uploads and any(
-            res.get("metadata_upload").statuscode == 404
+            res.get("metadata_upload") is not None
+            and res["metadata_upload"].statuscode == 404
             for res in rejected_uploads
         ):
             warnings.warn("Case is not registered on Sumo")
