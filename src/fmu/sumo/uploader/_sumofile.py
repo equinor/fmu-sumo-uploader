@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any, ParamSpec
 
 import httpx
 import tenacity
@@ -25,6 +25,11 @@ from sumo.wrapper import RetryStrategy
 from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._utils import get_element
 
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable, Coroutine
+
+P = ParamSpec("P")
+
 _max_single_put_size = 4 * 1024 * 1024
 
 # pylint: disable=C0103 # allow non-snake case variable names
@@ -32,14 +37,14 @@ _max_single_put_size = 4 * 1024 * 1024
 logger = get_uploader_logger()
 
 
-def _get_sumo_logger(sumoclient):
+def _get_sumo_logger(sumoclient: Any) -> logging.Logger:
     sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
     sumo_logger.setLevel(logging.INFO)
     sumo_logger.propagate = False
     return sumo_logger
 
 
-def is_seismic(metadata):
+def is_seismic(metadata: dict[str, Any]) -> bool:
     return get_element(metadata, "data.format") in [
         "openvds",
         "segy",
@@ -47,7 +52,14 @@ def is_seismic(metadata):
 
 
 class ResponseInfo:
-    def __init__(self, result, err, statuscode, t0, t1):
+    def __init__(
+        self,
+        result: Any,
+        err: str | None,
+        statuscode: int,
+        t0: float,
+        t1: float,
+    ) -> None:
         self.result = result
         self.err = err
         self.statuscode = statuscode
@@ -55,13 +67,13 @@ class ResponseInfo:
         self.elapsed = t1 - t0
         self.retries = 0
 
-    def ok(self):
+    def ok(self) -> bool:
         return self.result is not None and self.err is None
 
-    def errinfo(self):
+    def errinfo(self) -> dict[str, Any]:
         return {"err": self.err, "statuscode": self.statuscode}
 
-    def json(self):
+    def json(self) -> dict[str, Any]:
         return {
             "result": self.result,
             "err": self.err,
@@ -71,11 +83,13 @@ class ResponseInfo:
         }
 
 
-def upload_response(func):
+def upload_response(
+    func: Callable[P, Awaitable[Any]],
+) -> Callable[P, Coroutine[Any, Any, ResponseInfo]]:
     """Decorator to wrap upload functions and return a consistent response format"""
 
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseInfo:
         t0 = time.perf_counter()
         try:
             result = await func(*args, **kwargs)
@@ -106,8 +120,11 @@ def upload_response(func):
 
 @upload_response
 async def upload_metadata(
-    sumoclient, sumo_parent_id, metadata, retry_strategy
-):
+    sumoclient: Any,
+    sumo_parent_id: str,
+    metadata: dict[str, Any],
+    retry_strategy: Any,
+) -> Any:
     """Upload metadata to Sumo and return a consistent response format"""
     path = f"/objects('{sumo_parent_id}')"
     response = await sumoclient.post_async(
@@ -117,7 +134,7 @@ async def upload_metadata(
     return response.json()
 
 
-def get_blob_client(blob_url):
+def get_blob_client(blob_url: str) -> BlobClient:
     blobclient = BlobClient.from_blob_url(
         blob_url,
         connection_timeout=600,
@@ -127,7 +144,7 @@ def get_blob_client(blob_url):
     return blobclient
 
 
-async def _upload_blob(blob_url, byte_string):
+async def _upload_blob(blob_url: str, byte_string: bytes) -> None:
     blobclient = get_blob_client(blob_url)
     content_settings = ContentSettings(content_type="application/octet-stream")
     # set a timeout of 10s per megabyte, and at least 30s
@@ -143,10 +160,10 @@ async def _upload_blob(blob_url, byte_string):
 
 
 @upload_response
-async def upload_blob(blob_url, byte_string, retryer):
+async def upload_blob(blob_url: str, byte_string: bytes, retryer: Any) -> bool:
     """Upload blob to Azure and return a consistent response format"""
 
-    async def doit():
+    async def doit() -> None:
         await _upload_blob(blob_url, byte_string)
 
     await retryer(doit)
@@ -156,7 +173,7 @@ async def upload_blob(blob_url, byte_string, retryer):
 
 
 @upload_response
-async def validate(parent_id, metadata):
+async def validate(parent_id: str, metadata: dict[str, Any]) -> bool:
     """Validate metadata and return a consistent response format"""
     if not parent_id:
         raise Exception("Validation failed: Missing case/sumo_parent_id")
@@ -176,7 +193,7 @@ async def validate(parent_id, metadata):
 
 
 @functools.cache
-def get_path_to_segyimport():
+def get_path_to_segyimport() -> str:
     segy_command = "SEGYImport"
     if sys.platform.startswith("win"):
         segy_command = segy_command + ".exe"
@@ -199,7 +216,12 @@ def get_path_to_segyimport():
     return _path_to_segyimport
 
 
-def get_segyimport_cmd(blob_url, object_id, file_path, sample_unit):
+def get_segyimport_cmd(
+    blob_url: str | dict[str, str],
+    object_id: str,
+    file_path: str,
+    sample_unit: str,
+) -> list[str]:
     """Return the command string for running OpenVDS SEGYImport"""
     if isinstance(blob_url, str):
         baseuri, auth = blob_url.split("?")
@@ -233,7 +255,12 @@ def get_segyimport_cmd(blob_url, object_id, file_path, sample_unit):
 
 
 @upload_response
-async def upload_seismic_blob(object_id, path, metadata, blob_url):
+async def upload_seismic_blob(
+    object_id: str,
+    path: str,
+    metadata: dict[str, Any],
+    blob_url: str | dict[str, str],
+) -> bool:
     if sys.platform.startswith("darwin"):
         # OpenVDS does not support Mac/darwin directly
         # Outer code expects and interprets http error codes
@@ -282,10 +309,12 @@ class SumoFile:
     sumo_object_id: str | None
     _size: int | None
 
-    def __init__(self):
+    def __init__(self) -> None:
         return
 
-    def _warn_on_blob_size_mismatch(self, file_size_bytes, sumo_logger):
+    def _warn_on_blob_size_mismatch(
+        self, file_size_bytes: int | None, sumo_logger: logging.Logger
+    ) -> None:
         sumo_blob_size = get_element(self.metadata, "_sumo.blob_size")
 
         if file_size_bytes is not None and file_size_bytes != sumo_blob_size:
@@ -300,13 +329,15 @@ class SumoFile:
                 extra={"objectUuid": case_uuid},
             )
 
-    async def _delete_metadata(self, sumoclient, object_id):
+    async def _delete_metadata(self, sumoclient: Any, object_id: str) -> Any:
         logger.warning("Deleting metadata object: %s", object_id)
         path = f"/objects('{object_id}')"
         response = await sumoclient.delete_async(path=path)
         return response
 
-    async def upload_to_sumo(self, sumo_parent_id, sumoclient, sumo_mode):
+    async def upload_to_sumo(
+        self, sumo_parent_id: str, sumoclient: Any, sumo_mode: str
+    ) -> dict[str, Any]:
         """Upload this file to Sumo"""
         file_size_bytes = get_element(self.metadata, "file.size_bytes")
 
@@ -332,7 +363,7 @@ class SumoFile:
 
         retries = [0]  # mutable object to store retry count in closure
 
-        def update_retries(retry_state):
+        def update_retries(retry_state: Any) -> None:
             retries[0] = retry_state.attempt_number
 
         retry_strategy = RetryStrategy(before_sleep=update_retries)
@@ -368,10 +399,10 @@ class SumoFile:
         else:  # non-seismic blob
             retries = [0]  # mutable object to store retry count in closure
 
-            def update_retries(retry_state):
+            def update_retries(retry_state: Any) -> None:
                 retries[0] = retry_state.attempt_number
 
-            def return_last_value(retry_state):
+            def return_last_value(retry_state: Any) -> Any:
                 return retry_state.outcome.result()
 
             retryer = tenacity.AsyncRetrying(
@@ -425,7 +456,7 @@ class SumoFile:
         return result
 
 
-def _path_to_yaml_path(path):
+def _path_to_yaml_path(path: str) -> str:
     """
     Given a path, return the corresponding yaml file path
     according to FMU standards.

@@ -71,6 +71,9 @@ ignore_missing_imports = true
 module = [
   "fmu.sumo.uploader._logger",
   "fmu.sumo.uploader._utils",
+  "fmu.sumo.uploader._sumofile",
+  "fmu.sumo.uploader._fileondisk",
+  "fmu.sumo.uploader._fileonjob",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
