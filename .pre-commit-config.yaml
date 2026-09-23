@@ -14,3 +14,11 @@ repos:
       entry: bash -c 'ruff format . --check'
       language: system
       stages: ["pre-commit", "pre-push"]
+
+    - id: mypy
+      name: mypy
+      description: Static type checking using mypy
+      entry: bash -c 'mypy'
+      language: system
+      pass_filenames: false
+      stages: ["pre-commit", "pre-push"]

@@ -4,6 +4,8 @@ Base class for CaseOnDisk class.
 
 """
 
+from __future__ import annotations
+
 import json
 import os
 import statistics
@@ -11,6 +13,7 @@ import time
 import warnings
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
+from typing import TYPE_CHECKING
 
 from fmu.dataio.manifest import get_manifest_path
 
@@ -21,6 +24,9 @@ from fmu.sumo.uploader._utils import (
     get_host_and_domain_names,
     sanitize_datetimes,
 )
+
+if TYPE_CHECKING:
+    from fmu.sumo.uploader._sumofile import SumoFile
 
 try:
     uploader_version = version("fmu-sumo-uploader")
@@ -60,7 +66,7 @@ class SumoCase:
         self._sumo_parent_id = self._fmu_case_uuid
         self.config_path = config_path
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
-        self._files = []
+        self._files: list[SumoFile] = []
         self.sumo_mode = sumo_mode
 
     def _load_export_manifest(self):

@@ -7,7 +7,7 @@ version_file = "src/fmu/sumo/uploader/_version.py"
 
 [project]
 name = "fmu-sumo-uploader"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dynamic = ["version"]
 dependencies = [
   "sumo-wrapper-python>=1.8.0",
@@ -20,8 +20,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "pytest-asyncio", "pre-commit"]
+dev = [
+  "ruff",
+  "pytest",
+  "pytest-asyncio",
+  "pre-commit",
+  "mypy",
+  "types-PyYAML",
+]
 test = ["pytest", "pytest-asyncio","pytest-timeout", "fmu-sumo"]
+typing = ["mypy", "types-PyYAML"]
 
 docs = [
   "sphinx==6.2.1",
@@ -38,6 +46,27 @@ platforms = ["any"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+mypy_path = "src"
+namespace_packages = true
+explicit_package_bases = true
+platform = "linux"
+exclude = ["src/fmu/sumo/uploader/_version\\.py$"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["sumo.*", "ert.*", "res.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fmu.sumo.uploader._version"
+ignore_errors = true
 
 [project.scripts]
 sumo_upload = "fmu.sumo.uploader.scripts.sumo_upload:main"

@@ -29,3 +29,24 @@ jobs:
       - name: Run ruff format
         run: ruff format . --check
 
+  mypy:
+    name: Run mypy type checks
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Installing dependencies
+        run: pip install -e .[typing]
+
+      - name: Run mypy
+        run: mypy
+

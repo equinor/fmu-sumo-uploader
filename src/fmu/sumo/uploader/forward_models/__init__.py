@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from ert import (  # type: ignore
+from ert import (
     ForwardModelStepDocumentation,
     ForwardModelStepJSON,
     ForwardModelStepPlugin,

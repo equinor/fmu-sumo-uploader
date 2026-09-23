@@ -12,9 +12,9 @@ import tenacity as tn
 from ert.plugins.plugin_manager import hook_implementation
 
 try:
-    from ert import ErtScript  # type: ignore
+    from ert import ErtScript
 except ModuleNotFoundError:
-    from res.job_queue import ErtScript  # type: ignore
+    from res.job_queue import ErtScript
 
 from sumo.wrapper import SumoClient
 
