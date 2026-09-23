@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 import warnings
-from typing import TYPE_CHECKING, Any, ParamSpec
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import tenacity
@@ -27,8 +27,6 @@ from fmu.sumo.uploader._utils import get_element
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Coroutine
-
-P = ParamSpec("P")
 
 _max_single_put_size = 4 * 1024 * 1024
 
@@ -83,7 +81,7 @@ class ResponseInfo:
         }
 
 
-def upload_response(
+def upload_response[**P](
     func: Callable[P, Awaitable[Any]],
 ) -> Callable[P, Coroutine[Any, Any, ResponseInfo]]:
     """Decorator to wrap upload functions and return a consistent response format"""
