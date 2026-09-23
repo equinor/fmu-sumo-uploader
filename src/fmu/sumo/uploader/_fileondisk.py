@@ -8,8 +8,6 @@ pair (technically two files).
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -53,39 +51,17 @@ class FileOnDisk(SumoFile):
     def __init__(
         self,
         path: str,
-        metadata_path: str | Path | None = None,
-        verbosity: int | str = "WARNING",
     ) -> None:
         """
         path (str): Path to file
-        metadata_path (str): Path to metadata file. If not provided,
-                             path will be derived from file path.
         """
-
-        logger.setLevel(level=verbosity)
-
-        self.metadata_path = (
-            metadata_path if metadata_path else _path_to_yaml_path(path)
-        )
+        metadata_path = _path_to_yaml_path(path)
+        metadata = parse_yaml(metadata_path)
+        byte_string = file_to_byte_string(path)
+        super().__init__(metadata=metadata, byte_string=byte_string)
         self.path = path
-        self.metadata = parse_yaml(self.metadata_path)
-
-        self._size = os.path.getsize(self.path)
-
-        self.basename = os.path.basename(self.path)
-        self.dir_name = os.path.dirname(self.path)
-
+        # self._size = os.path.getsize(self.path)
         self.sumo_object_id = None
-
-        self.metadata["_sumo"] = {}
-
-        self.byte_string = file_to_byte_string(path)
-        self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
-        digester = hashlib.md5(self.byte_string)
-        self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
-            digester.digest()
-        ).decode("utf-8")
-        self.metadata["_sumo"]["uploader"] = version
 
     def __repr__(self) -> str:
         if not self.metadata:
@@ -93,7 +69,7 @@ class FileOnDisk(SumoFile):
 
         s = f"\n# {self.__class__}"
         s += f"\n# Disk path: {self.path}"
-        s += f"\n# Basename: {self.basename}"
+        s += f"\n# Basename: {os.path.basename(self.path)}"
         if self.byte_string is not None:
             s += f"\n# Byte string length: {len(self.byte_string)}"
 

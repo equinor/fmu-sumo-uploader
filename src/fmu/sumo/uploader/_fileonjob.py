@@ -6,8 +6,6 @@ pair (technically two files).
 
 """
 
-import base64
-import hashlib
 from typing import Any
 
 from fmu.sumo.uploader._logger import get_uploader_logger
@@ -26,21 +24,7 @@ logger = get_uploader_logger()
 class FileOnJob(SumoFile):
     def __init__(self, byte_string: bytes, metadata: dict[str, Any]) -> None:
         """
-        path (str): Path to file
-        metadata_path (str): Path to metadata file. If not provided,
-                             path will be derived from file path.
+        byte_string (bytes): The content of the file.
+        metadata (dict[str, Any]): The metadata associated with the file.
         """
-        self.metadata = metadata
-        self._size = None
-        self.sumo_object_id = None
-
-        self.metadata["_sumo"] = {}
-
-        self.byte_string = byte_string
-        self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
-        digester = hashlib.md5(self.byte_string)
-        self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
-            digester.digest()
-        ).decode("utf-8")
-        self.metadata["file"]["checksum_md5"] = digester.hexdigest()
-        self.metadata["_sumo"]["uploader"] = version
+        super().__init__(metadata=metadata, byte_string=byte_string)

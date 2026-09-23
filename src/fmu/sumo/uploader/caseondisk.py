@@ -142,7 +142,7 @@ class CaseOnDisk(SumoCase):
 
         for file_path in file_paths:
             try:
-                file = FileOnDisk(path=file_path, verbosity=self.verbosity)
+                file = FileOnDisk(path=file_path)
                 self._files.append(file)
                 logger.info("File appended: %s", file_path)
 
