@@ -75,6 +75,8 @@ module = [
   "fmu.sumo.uploader._fileondisk",
   "fmu.sumo.uploader._fileonjob",
   "fmu.sumo.uploader._upload_files",
+  "fmu.sumo.uploader._sumocase",
+  "fmu.sumo.uploader.caseondisk",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
