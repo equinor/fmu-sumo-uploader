@@ -14,7 +14,7 @@ from fmu.sumo.uploader.scripts.sumo_upload import DESCRIPTION, EXAMPLES
 
 
 class SumoUpload(ForwardModelStepPlugin):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="SUMO_UPLOAD",
             command=[
@@ -59,5 +59,5 @@ class SumoUpload(ForwardModelStepPlugin):
 
 @hook_implementation
 @plugin(name="fmu_sumo_uploader")
-def installable_forward_model_steps():
+def installable_forward_model_steps() -> list[type[ForwardModelStepPlugin]]:
     return [SumoUpload]

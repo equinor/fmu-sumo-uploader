@@ -211,6 +211,8 @@ def get_path_to_segyimport() -> str:
         if os.path.isfile(path):
             _path_to_segyimport = path
             break
+    else:
+        _path_to_segyimport = None
     if _path_to_segyimport is None:
         raise Exception("Could not find OpenVDS executables folder location")
     return _path_to_segyimport

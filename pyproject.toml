@@ -56,30 +56,19 @@ explicit_package_bases = true
 platform = "linux"
 exclude = ["src/fmu/sumo/uploader/_version\\.py$"]
 check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+no_implicit_reexport = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+enable_error_code = ["possibly-undefined"]
 pretty = true
 
 [[tool.mypy.overrides]]
 module = ["sumo.*", "ert.*", "res.*"]
 ignore_missing_imports = true
-
-# Modules that have been fully annotated. Extend this list as the
-# remaining modules are annotated.
-[[tool.mypy.overrides]]
-module = [
-  "fmu.sumo.uploader._logger",
-  "fmu.sumo.uploader._utils",
-  "fmu.sumo.uploader._sumofile",
-  "fmu.sumo.uploader._fileondisk",
-  "fmu.sumo.uploader._fileonjob",
-  "fmu.sumo.uploader._upload_files",
-  "fmu.sumo.uploader._sumocase",
-  "fmu.sumo.uploader.caseondisk",
-]
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
 
 [[tool.mypy.overrides]]
 module = "fmu.sumo.uploader._version"
