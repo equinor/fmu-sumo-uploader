@@ -65,6 +65,16 @@ pretty = true
 module = ["sumo.*", "ert.*", "res.*"]
 ignore_missing_imports = true
 
+# Modules that have been fully annotated. Extend this list as the
+# remaining modules are annotated.
+[[tool.mypy.overrides]]
+module = [
+  "fmu.sumo.uploader._logger",
+  "fmu.sumo.uploader._utils",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
 [[tool.mypy.overrides]]
 module = "fmu.sumo.uploader._version"
 ignore_errors = true

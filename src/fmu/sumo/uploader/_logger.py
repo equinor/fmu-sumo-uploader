@@ -3,7 +3,7 @@ import sys
 
 
 # def getLogger(module_name="subscript"):
-def get_uploader_logger():
+def get_uploader_logger() -> logging.Logger:
     # pylint: disable=invalid-name
     """Provides a unified logger for fmu-sumo-uploader.
 

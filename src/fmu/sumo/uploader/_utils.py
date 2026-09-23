@@ -1,15 +1,15 @@
 import datetime
 import os
-from typing import overload
+from typing import Any, overload
 
 
 @overload
-def sanitize_datetimes(data: dict) -> dict: ...
+def sanitize_datetimes(data: dict[str, Any]) -> dict[str, Any]: ...
 @overload
 def sanitize_datetimes(data: datetime.datetime) -> str: ...
 @overload
-def sanitize_datetimes(data: list) -> list: ...
-def sanitize_datetimes(data):
+def sanitize_datetimes(data: list[Any]) -> list[Any]: ...
+def sanitize_datetimes(data: Any) -> Any:
     """Sanitize datetimes.
 
     Given a dictionary, recursively find and replace all datetime objects
@@ -26,7 +26,7 @@ def sanitize_datetimes(data):
     return data
 
 
-def get_element(dictionary: dict, element: str):
+def get_element(dictionary: dict[str, Any], element: str) -> Any:
     """Get an element from a nested dictionary.
 
     Given a nested dictionary and a dot-separated string representing
@@ -48,7 +48,7 @@ def get_element(dictionary: dict, element: str):
     return value
 
 
-def get_host_and_domain_names():
+def get_host_and_domain_names() -> tuple[str, str]:
     nodename = os.uname().nodename
     nameparts = nodename.split(".", 1)
     host_name = nameparts[0]
