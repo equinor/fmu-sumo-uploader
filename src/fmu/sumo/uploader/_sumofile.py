@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ParamSpec
 
 import httpx
 import tenacity
@@ -29,6 +29,8 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Coroutine
 
 _max_single_put_size = 4 * 1024 * 1024
+
+P = ParamSpec("P")
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
@@ -81,7 +83,7 @@ class ResponseInfo:
         }
 
 
-def upload_response[**P](
+def upload_response(
     func: Callable[P, Awaitable[Any]],
 ) -> Callable[P, Coroutine[Any, Any, ResponseInfo]]:
     """Decorator to wrap upload functions and return a consistent response format"""
