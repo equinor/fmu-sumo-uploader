@@ -13,23 +13,13 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._sumofile import SumoFile, _path_to_yaml_path
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-try:
-    from ._version import version
-except (ImportError, AttributeError):
-    version = "0.0.0"
 
-# pylint: disable=C0103 # allow non-snake case variable names
-
-logger = get_uploader_logger()
-
-
-def parse_yaml(path: str | Path) -> Any:
+def parse_yaml(path: str | Path) -> dict[str, Any]:
     """From path, parse file as yaml, return data"""
     with open(path, "r") as stream:
         data = yaml.safe_load(stream)
@@ -50,18 +40,19 @@ def file_to_byte_string(path: str | Path) -> bytes:
 class FileOnDisk(SumoFile):
     def __init__(
         self,
-        path: str,
+        path: str | Path,
     ) -> None:
-        """
-        path (str): Path to file
+        """Initialize FileOnDisk.
+
+        Args:
+            path: Path to the data file. The companion metadata file is
+                derived from it.
         """
         metadata_path = _path_to_yaml_path(path)
         metadata = parse_yaml(metadata_path)
         byte_string = file_to_byte_string(path)
         super().__init__(metadata=metadata, byte_string=byte_string)
         self.path = path
-        # self._size = os.path.getsize(self.path)
-        self.sumo_object_id = None
 
     def __repr__(self) -> str:
         if not self.metadata:

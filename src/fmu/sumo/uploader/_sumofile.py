@@ -29,6 +29,7 @@ from fmu.sumo.uploader._utils import get_element
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Coroutine
+    from pathlib import Path
 
     from sumo.wrapper import SumoClient
 
@@ -132,7 +133,7 @@ async def upload_metadata(
     sumo_parent_id: str,
     metadata: dict[str, Any],
     retry_strategy: RetryStrategy,
-) -> Any:
+) -> dict[str, Any]:
     """Upload metadata to Sumo and return a consistent response format"""
     path = f"/objects('{sumo_parent_id}')"
     response = await sumoclient.post_async(
@@ -231,7 +232,7 @@ def get_path_to_segyimport() -> str:
 def get_segyimport_cmd(
     blob_url: str | dict[str, str],
     object_id: str,
-    file_path: str,
+    file_path: str | Path,
     sample_unit: str,
 ) -> list[str]:
     """Return the command string for running OpenVDS SEGYImport"""
@@ -260,7 +261,7 @@ def get_segyimport_cmd(
         url_conn,
         "--persistentID",
         persistent_id,
-        file_path,
+        str(file_path),
     ]
 
     return cmd
@@ -269,7 +270,7 @@ def get_segyimport_cmd(
 @upload_response
 async def upload_seismic_blob(
     object_id: str,
-    path: str,
+    path: str | Path,
     metadata: dict[str, Any],
     blob_url: str | dict[str, str],
 ) -> bool:
@@ -313,13 +314,13 @@ async def upload_seismic_blob(
 
 
 class SumoFile:
-    # Declared, but deliberately not assigned: these are set by the
-    # subclasses, and a default here would mask an unset attribute.
     metadata: dict[str, Any]
     byte_string: bytes
-    path: str
     sumo_object_id: str | None
-    # _size: int | None
+    blob_md5_hex: str
+    # Declared, but deliberately not assigned: this is set by FileOnDisk, and
+    # by the caller for FileOnJob. A default here would mask an unset value.
+    path: str | Path
 
     def __init__(
         self,
@@ -328,7 +329,6 @@ class SumoFile:
     ) -> None:
         self.metadata = metadata
         self.byte_string = byte_string
-        # self._size = None
         self.sumo_object_id = None
         digester = hashlib.md5(self.byte_string)
         self.blob_md5_hex = digester.hexdigest()
@@ -358,7 +358,7 @@ class SumoFile:
 
     async def _delete_metadata(
         self, sumoclient: SumoClient, object_id: str
-    ) -> Any:
+    ) -> httpx.Response:
         logger.warning("Deleting metadata object: %s", object_id)
         path = f"/objects('{object_id}')"
         response = await sumoclient.delete_async(path=path)
@@ -485,7 +485,7 @@ class SumoFile:
         return result
 
 
-def _path_to_yaml_path(path: str) -> str:
+def _path_to_yaml_path(path: str | Path) -> str:
     """
     Given a path, return the corresponding yaml file path
     according to FMU standards.
