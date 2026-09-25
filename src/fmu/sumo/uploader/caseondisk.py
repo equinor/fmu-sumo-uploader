@@ -11,7 +11,7 @@ import warnings
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import httpx
 import yaml
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
     from fmu.sumo.uploader._sumofile import SumoFile
 
-type UploadResult = dict[str, Any]
+UploadResult: TypeAlias = dict[str, Any]
 """The outcome of uploading a single file, as returned by upload_files."""
 
 logger = get_uploader_logger()
@@ -104,6 +104,7 @@ class CaseOnDisk:
 
         self._files: list[SumoFile] = []
         self._fmu_case_uuid = get_element(self.case_metadata, "fmu.case.uuid")
+        logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
         self._sumo_parent_id = self._fmu_case_uuid
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
 
@@ -305,8 +306,8 @@ class CaseOnDisk:
             logger.info(upload_statistics)
             self._update_sumo_uploads()
 
-        self._log_upload_issues("rejected by", rejected_uploads)
-        self._log_upload_issues("failed by", failed_uploads)
+        self._log_upload_issues("rejected", rejected_uploads)
+        self._log_upload_issues("failed", failed_uploads)
 
         logger.info("Summary:")
         logger.info("Total files count: %s", str(len(files_to_upload)))
@@ -357,7 +358,7 @@ class CaseOnDisk:
         return ok_uploads
 
     def _log_upload_issues(
-        self, description: str, uploads: list[UploadResult]
+        self, outcome: str, uploads: list[UploadResult]
     ) -> None:
         """Log the first few problematic uploads, locally and to Sumo."""
 
@@ -365,7 +366,7 @@ class CaseOnDisk:
             return
 
         logger.info(
-            f"\n\n{len(uploads)} files {description} Sumo. First 5 files:"
+            f"\n\n{len(uploads)} files {outcome} by Sumo. First 5 {outcome} files:"
         )
 
         for upload in uploads[:5]:
