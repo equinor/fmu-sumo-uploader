@@ -330,13 +330,13 @@ class SumoFile:
         self.byte_string = byte_string
         # self._size = None
         self.sumo_object_id = None
+        digester = hashlib.md5(self.byte_string)
+        self.blob_md5_hex = digester.hexdigest()
         self.metadata["_sumo"] = {}
         self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
-        digester = hashlib.md5(self.byte_string)
         self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
             digester.digest()
         ).decode("utf-8")
-        self.metadata["file"]["checksum_md5"] = digester.hexdigest()
         self.metadata["_sumo"]["uploader"] = version
 
     def _warn_on_blob_size_mismatch(
