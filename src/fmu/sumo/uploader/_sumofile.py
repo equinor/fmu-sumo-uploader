@@ -6,7 +6,9 @@ Base class for FileOnJob and FileOnDisk classes.
 
 from __future__ import annotations
 
+import base64
 import functools
+import hashlib
 import logging
 import math
 import os
@@ -27,7 +29,14 @@ from fmu.sumo.uploader._utils import get_element
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Coroutine
+    from pathlib import Path
 
+    from sumo.wrapper import SumoClient
+
+try:
+    from ._version import version
+except (ImportError, AttributeError):
+    version = "0.0.0"
 _max_single_put_size = 4 * 1024 * 1024
 
 P = ParamSpec("P")
@@ -37,7 +46,7 @@ P = ParamSpec("P")
 logger = get_uploader_logger()
 
 
-def _get_sumo_logger(sumoclient: Any) -> logging.Logger:
+def _get_sumo_logger(sumoclient: SumoClient) -> logging.Logger:
     sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
     sumo_logger.setLevel(logging.INFO)
     sumo_logger.propagate = False
@@ -120,11 +129,11 @@ def upload_response(
 
 @upload_response
 async def upload_metadata(
-    sumoclient: Any,
+    sumoclient: SumoClient,
     sumo_parent_id: str,
     metadata: dict[str, Any],
-    retry_strategy: Any,
-) -> Any:
+    retry_strategy: RetryStrategy,
+) -> dict[str, Any]:
     """Upload metadata to Sumo and return a consistent response format"""
     path = f"/objects('{sumo_parent_id}')"
     response = await sumoclient.post_async(
@@ -160,7 +169,9 @@ async def _upload_blob(blob_url: str, byte_string: bytes) -> None:
 
 
 @upload_response
-async def upload_blob(blob_url: str, byte_string: bytes, retryer: Any) -> bool:
+async def upload_blob(
+    blob_url: str, byte_string: bytes, retryer: RetryStrategy
+) -> bool:
     """Upload blob to Azure and return a consistent response format"""
 
     async def doit() -> None:
@@ -221,7 +232,7 @@ def get_path_to_segyimport() -> str:
 def get_segyimport_cmd(
     blob_url: str | dict[str, str],
     object_id: str,
-    file_path: str,
+    file_path: str | Path,
     sample_unit: str,
 ) -> list[str]:
     """Return the command string for running OpenVDS SEGYImport"""
@@ -250,7 +261,7 @@ def get_segyimport_cmd(
         url_conn,
         "--persistentID",
         persistent_id,
-        file_path,
+        str(file_path),
     ]
 
     return cmd
@@ -259,7 +270,7 @@ def get_segyimport_cmd(
 @upload_response
 async def upload_seismic_blob(
     object_id: str,
-    path: str,
+    path: str | Path,
     metadata: dict[str, Any],
     blob_url: str | dict[str, str],
 ) -> bool:
@@ -303,16 +314,30 @@ async def upload_seismic_blob(
 
 
 class SumoFile:
-    # Declared, but deliberately not assigned: these are set by the
-    # subclasses, and a default here would mask an unset attribute.
     metadata: dict[str, Any]
     byte_string: bytes
-    path: str
     sumo_object_id: str | None
-    _size: int | None
+    blob_md5_hex: str
+    # Declared, but deliberately not assigned: this is set by FileOnDisk, and
+    # by the caller for FileOnJob. A default here would mask an unset value.
+    path: str | Path
 
-    def __init__(self) -> None:
-        return
+    def __init__(
+        self,
+        metadata: dict[str, Any],
+        byte_string: bytes,
+    ) -> None:
+        self.metadata = metadata
+        self.byte_string = byte_string
+        self.sumo_object_id = None
+        digester = hashlib.md5(self.byte_string)
+        self.blob_md5_hex = digester.hexdigest()
+        self.metadata["_sumo"] = {}
+        self.metadata["_sumo"]["blob_size"] = len(self.byte_string)
+        self.metadata["_sumo"]["blob_md5"] = base64.b64encode(
+            digester.digest()
+        ).decode("utf-8")
+        self.metadata["_sumo"]["uploader"] = version
 
     def _warn_on_blob_size_mismatch(
         self, file_size_bytes: int | None, sumo_logger: logging.Logger
@@ -331,14 +356,16 @@ class SumoFile:
                 extra={"objectUuid": case_uuid},
             )
 
-    async def _delete_metadata(self, sumoclient: Any, object_id: str) -> Any:
+    async def _delete_metadata(
+        self, sumoclient: SumoClient, object_id: str
+    ) -> httpx.Response:
         logger.warning("Deleting metadata object: %s", object_id)
         path = f"/objects('{object_id}')"
         response = await sumoclient.delete_async(path=path)
         return response
 
     async def upload_to_sumo(
-        self, sumo_parent_id: str, sumoclient: Any, sumo_mode: str
+        self, sumo_parent_id: str, sumoclient: SumoClient, sumo_mode: str
     ) -> dict[str, Any]:
         """Upload this file to Sumo"""
         file_size_bytes = get_element(self.metadata, "file.size_bytes")
@@ -458,7 +485,7 @@ class SumoFile:
         return result
 
 
-def _path_to_yaml_path(path: str) -> str:
+def _path_to_yaml_path(path: str | Path) -> str:
     """
     Given a path, return the corresponding yaml file path
     according to FMU standards.
