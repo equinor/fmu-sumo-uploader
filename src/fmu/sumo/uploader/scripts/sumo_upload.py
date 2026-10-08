@@ -78,12 +78,7 @@ def main() -> None:
     parser = _get_parser()
     args = parser.parse_args()
 
-    logger.setLevel(logging.INFO)
-
-    if args.verbose:
-        logger.setLevel(logging.INFO)
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
 
     # Legacy? Still needed?
     args.casepath = os.path.expandvars(args.casepath)
@@ -107,6 +102,48 @@ def _get_sumo_client(env: str, client_id: str) -> SumoClient:
     return SumoClient(env=env, client_id=client_id)
 
 
+def _connect_to_sumo() -> SumoClient:
+    """Connect to the Sumo environment given by the SUMO_ENV env var."""
+
+    env = os.environ.get("SUMO_ENV", "prod")
+    if env not in ["preview", "dev", "test", "prod", "localhost"]:
+        warnings.warn(f"Non-standard environment: {env}")
+
+    sumoclient = _get_sumo_client(env, uploader_client_id)
+    logger.info("Connection to Sumo established, env=%s", env)
+    return sumoclient
+
+
+def _log_upload_exception(
+    err: Exception,
+    sumoclient: SumoClient | None,
+    case_metadata_path: Path | None,
+    case: uploader.CaseOnDisk | None,
+) -> None:
+    """Log an upload problem locally, and to Sumo if we got that far."""
+
+    err = err.with_traceback(None)
+    logger.warning(f"Problem related to Sumo upload: {err} {type(err)}")
+
+    if sumoclient is None:
+        return
+
+    try:
+        sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
+        sumo_logger.propagate = False
+        sumo_logger.warning(
+            "Problem related to Sumo upload for case: %s; %s %s",
+            case_metadata_path,
+            err,
+            type(err),
+            extra={
+                "objectUuid": case.fmu_case_uuid if case is not None else None
+            },
+        )
+    except Exception:
+        logger.warning("Failed logging to exception to Sumo")
+
+
 def sumo_upload_main(
     casepath: str,
     metadata_path: str,
@@ -122,17 +159,12 @@ def sumo_upload_main(
     # Catch-all to ensure FMU workflow keeps running even if something happens.
     # This should be a temporary solution to be re-evaluated in the future.
 
-    sumoclient = None
+    sumoclient: SumoClient | None = None
     case_metadata_path: Path | None = None
-    e: uploader.CaseOnDisk | None = None
+    case: uploader.CaseOnDisk | None = None
     try:
         # establish the connection to Sumo
-        env = os.environ.get("SUMO_ENV", "prod")
-        if env not in ["preview", "dev", "test", "prod", "localhost"]:
-            warnings.warn(f"Non-standard environment: {env}")
-
-        sumoclient = _get_sumo_client(env, uploader_client_id)
-        logger.info("Connection to Sumo established, env=%s", env)
+        sumoclient = _connect_to_sumo()
 
         # initiate the case on disk object
         logger.info("Case-relative metadata path is %s", metadata_path)
@@ -141,7 +173,7 @@ def sumo_upload_main(
 
         logger.info("Sumo mode: %s", sumo_mode)
 
-        e = uploader.CaseOnDisk(
+        case = uploader.CaseOnDisk(
             case_metadata_path,
             sumoclient,
             verbosity,
@@ -150,40 +182,21 @@ def sumo_upload_main(
             casepath,
         )
         # add files to the case on disk object
-        e.add_files()
-        logger.info("%s files has been added", str(len(e.files)))
+        case.add_files()
+        logger.info("%s files has been added", str(len(case.files)))
 
-        if len(e.files) == 0:
+        if len(case.files) == 0:
             logger.debug("There are 0 (zero) files.")
             logger.info("No files found - aborting ")
             return
 
         # upload the indexed files
         logger.info("Starting upload")
-        e.upload()
+        case.upload()
         logger.info("Upload done")
 
     except Exception as err:
-        err = err.with_traceback(None)
-        logger.warning(f"Problem related to Sumo upload: {err} {type(err)}")
-        if sumoclient is not None:
-            try:
-                _sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
-                _sumo_logger.propagate = False
-                _sumo_logger.warning(
-                    "Problem related to Sumo upload for case: %s; %s %s",
-                    case_metadata_path,
-                    err,
-                    type(err),
-                    extra={
-                        "objectUuid": e.fmu_case_uuid
-                        if e is not None
-                        else None
-                    },
-                )
-            except Exception:
-                logger.warning("Failed logging to exception to Sumo")
-        return
+        _log_upload_exception(err, sumoclient, case_metadata_path, case)
 
 
 class SumoUpload(ErtScript):
