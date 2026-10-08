@@ -17,7 +17,7 @@ import subprocess
 import sys
 import time
 import warnings
-from typing import TYPE_CHECKING, Any, ParamSpec
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypedDict, cast
 
 import httpx
 import tenacity
@@ -41,6 +41,12 @@ _max_single_put_size = 4 * 1024 * 1024
 
 P = ParamSpec("P")
 
+UploadStatus = Literal["ok", "rejected", "failed"]
+"""The outcome of a single file upload.
+
+"rejected" means Sumo refused the file, "failed" means the upload itself did
+not complete."""
+
 # pylint: disable=C0103 # allow non-snake case variable names
 
 logger = get_uploader_logger()
@@ -61,6 +67,8 @@ def is_seismic(metadata: dict[str, Any]) -> bool:
 
 
 class ResponseInfo:
+    """The outcome and timing of a single request to Sumo or Azure."""
+
     def __init__(
         self,
         result: Any,
@@ -75,6 +83,18 @@ class ResponseInfo:
         self.t0 = t0
         self.elapsed = t1 - t0
         self.retries = 0
+
+    @classmethod
+    def success(cls, result: Any, t0: float) -> ResponseInfo:
+        """Return the outcome of a request that completed."""
+        return cls(result, None, 0, t0, time.perf_counter())
+
+    @classmethod
+    def failure(
+        cls, err: Exception, statuscode: int, t0: float
+    ) -> ResponseInfo:
+        """Return the outcome of a request that raised."""
+        return cls(None, str(err), statuscode, t0, time.perf_counter())
 
     def ok(self) -> bool:
         return self.result is not None and self.err is None
@@ -92,6 +112,37 @@ class ResponseInfo:
         }
 
 
+class _RetryCounter:
+    """Counts the attempts made by a retrying uploader.
+
+    An instance is passed as the "before_sleep" callback of a retryer, which
+    invokes it before each retry."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def __call__(self, retry_state: tenacity.RetryCallState) -> None:
+        self.count = retry_state.attempt_number
+
+
+class UploadResult(TypedDict, total=False):
+    """The outcome of uploading a single file.
+
+    Every key is optional: an upload can stop at any stage, and only the
+    stages that were reached are present. "blob_file_path" and
+    "file_size_bytes" are always set, and "status" is set before the result
+    is handed back to the caller.
+    """
+
+    blob_file_path: str | Path
+    file_size_bytes: int | None
+    validation: ResponseInfo
+    metadata_upload: ResponseInfo
+    blob_upload: ResponseInfo
+    status: UploadStatus
+    file: SumoFile
+
+
 def upload_response(
     func: Callable[P, Awaitable[Any]],
 ) -> Callable[P, Coroutine[Any, Any, ResponseInfo]]:
@@ -101,28 +152,21 @@ def upload_response(
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> ResponseInfo:
         t0 = time.perf_counter()
         try:
-            result = await func(*args, **kwargs)
-            return ResponseInfo(result, None, 0, t0, time.perf_counter())
+            return ResponseInfo.success(await func(*args, **kwargs), t0)
         except (httpx.TimeoutException, httpx.ConnectError) as err:
             err = err.with_traceback(None)
             logger.error(
                 f"HTTP connect/timeout error during upload: {err} {type(err)}"
             )
-            return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
+            return ResponseInfo.failure(err, 500, t0)
         except httpx.HTTPStatusError as err:
             err = err.with_traceback(None)
             logger.error(f"HTTP status error during upload: {err} {type(err)}")
-            return ResponseInfo(
-                None,
-                str(err),
-                err.response.status_code,
-                t0,
-                time.perf_counter(),
-            )
+            return ResponseInfo.failure(err, err.response.status_code, t0)
         except Exception as err:
             err = err.with_traceback(None)
             logger.error(f"Error during upload: {err} {type(err)}")
-            return ResponseInfo(None, str(err), 500, t0, time.perf_counter())
+            return ResponseInfo.failure(err, 500, t0)
 
     return wrapper
 
@@ -220,13 +264,9 @@ def get_path_to_segyimport() -> str:
     for loc in locations:
         path = os.path.join(loc, segy_command)
         if os.path.isfile(path):
-            _path_to_segyimport = path
-            break
-    else:
-        _path_to_segyimport = None
-    if _path_to_segyimport is None:
-        raise Exception("Could not find OpenVDS executables folder location")
-    return _path_to_segyimport
+            return path
+
+    raise Exception("Could not find OpenVDS executables folder location")
 
 
 def get_segyimport_cmd(
@@ -366,12 +406,12 @@ class SumoFile:
 
     async def upload_to_sumo(
         self, sumo_parent_id: str, sumoclient: SumoClient, sumo_mode: str
-    ) -> dict[str, Any]:
+    ) -> UploadResult:
         """Upload this file to Sumo"""
         file_size_bytes = get_element(self.metadata, "file.size_bytes")
 
         # We need these included even if returning before blob upload
-        result = {
+        result: UploadResult = {
             "blob_file_path": self.path,
             "file_size_bytes": file_size_bytes,
         }
@@ -390,99 +430,115 @@ class SumoFile:
                 "openvds"  # we will upload seismic as openvds format, even if originally segy
             )
 
-        retries = [0]  # mutable object to store retry count in closure
-
-        def update_retries(retry_state: Any) -> None:
-            retries[0] = retry_state.attempt_number
-
-        retry_strategy = RetryStrategy(before_sleep=update_retries)
-
-        result["metadata_upload"] = await upload_metadata(
-            sumoclient,
-            sumo_parent_id,
-            self.metadata,
-            retry_strategy=retry_strategy,
+        metadata_upload = await self._perform_metadata_upload(
+            sumoclient, sumo_parent_id
         )
-        result["metadata_upload"].retries = retries[0]
-        if not result["metadata_upload"].ok():
+        result["metadata_upload"] = metadata_upload
+
+        if not metadata_upload.ok():
             result["status"] = (
                 "rejected"
-                if result["metadata_upload"].statuscode in range(400, 500)
+                if metadata_upload.statuscode in range(400, 500)
                 else "failed"
             )
             return result
 
-        self.sumo_object_id = result["metadata_upload"].result.get("objectid")
+        object_id: str = metadata_upload.result.get("objectid")
+        self.sumo_object_id = object_id
+        blob_url = metadata_upload.result.get("blob_url")
 
-        blob_url = result["metadata_upload"].result.get("blob_url")
+        blob_upload = await self._perform_blob_upload(object_id, blob_url)
+        result["blob_upload"] = blob_upload
 
-        # UPLOAD BLOB
+        if not blob_upload.ok():
+            logger.warning(
+                "Deleting metadata since data-upload failed on object uuid "
+                + object_id
+            )
+            result["status"] = "failed"
+            await self._delete_metadata(sumoclient, object_id)
+            return result
+
+        result["status"] = "ok"
+        if sumo_mode.lower() == "move":
+            self._delete_local_files()
+
+        return result
+
+    async def _perform_metadata_upload(
+        self, sumoclient: SumoClient, sumo_parent_id: str
+    ) -> ResponseInfo:
+        """Upload the metadata, recording how many retries it took."""
+
+        retry_counter = _RetryCounter()
+        response = await upload_metadata(
+            sumoclient,
+            sumo_parent_id,
+            self.metadata,
+            retry_strategy=RetryStrategy(before_sleep=retry_counter),
+        )
+        response.retries = retry_counter.count
+        return response
+
+    async def _perform_blob_upload(
+        self, object_id: str, blob_url: str | dict[str, str]
+    ) -> ResponseInfo:
+        """Upload the blob, as OpenVDS for seismic and as-is for the rest.
+
+        Sumo returns the blob url as a string, but the OpenVDS path also
+        accepts it pre-split into "baseuri" and "auth"."""
 
         if is_seismic(self.metadata):
             logger.info(
                 "This is a seismic file, will attempt to upload as OpenVDS"
             )
-            result["blob_upload"] = await upload_seismic_blob(
-                self.sumo_object_id, self.path, self.metadata, blob_url
+            return await upload_seismic_blob(
+                object_id, self.path, self.metadata, blob_url
             )
-        else:  # non-seismic blob
-            retries = [0]  # mutable object to store retry count in closure
 
-            def update_retries(retry_state: Any) -> None:
-                retries[0] = retry_state.attempt_number
+        retry_counter = _RetryCounter()
 
-            def return_last_value(retry_state: Any) -> Any:
-                return retry_state.outcome.result()
+        def return_last_value(retry_state: tenacity.RetryCallState) -> Any:
+            return retry_state.outcome.result()  # type: ignore[union-attr]
 
-            retryer = tenacity.AsyncRetrying(
-                stop=tenacity.stop_after_attempt(1),
-                wait=(
-                    tenacity.wait_exponential(multiplier=0.5, exp_base=2)
-                    + tenacity.wait_random_exponential(
-                        multiplier=0.5, exp_base=2
-                    )
-                ),
-                retry_error_callback=return_last_value,
-                before_sleep=update_retries,
+        retryer = tenacity.AsyncRetrying(
+            stop=tenacity.stop_after_attempt(1),
+            wait=(
+                tenacity.wait_exponential(multiplier=0.5, exp_base=2)
+                + tenacity.wait_random_exponential(multiplier=0.5, exp_base=2)
+            ),
+            retry_error_callback=return_last_value,
+            before_sleep=retry_counter,
+        )
+        response = await upload_blob(
+            cast("str", blob_url), self.byte_string, retryer
+        )
+        response.retries = retry_counter.count
+        return response
+
+    def _delete_local_files(self) -> None:
+        """Delete the file and its metadata file, after a "move" upload."""
+
+        file_path = self.path
+        metadatafile_path = _path_to_yaml_path(file_path)
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.debug(
+                    "Deleted file after successful upload: %s",
+                    file_path,
+                )
+            if os.path.exists(metadatafile_path):
+                os.remove(metadatafile_path)
+                logger.debug(
+                    "Deleted metadatafile after successful upload: %s",
+                    metadatafile_path,
+                )
+        except Exception as err:
+            err = err.with_traceback(None)
+            warnings.warn(
+                f"Error deleting file after upload: {err} {type(err)}"
             )
-            result["blob_upload"] = await upload_blob(
-                blob_url, self.byte_string, retryer
-            )
-            result["blob_upload"].retries = retries[0]
-
-        if not result["blob_upload"].ok():
-            logger.warning(
-                "Deleting metadata since data-upload failed on object uuid "
-                + self.sumo_object_id
-            )
-            result["status"] = "failed"
-            await self._delete_metadata(sumoclient, self.sumo_object_id)
-        else:
-            result["status"] = "ok"
-            if sumo_mode.lower() == "move":
-                file_path = self.path
-                metadatafile_path = _path_to_yaml_path(file_path)
-                try:
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        logger.debug(
-                            "Deleted file after successful upload: %s",
-                            file_path,
-                        )
-                    if os.path.exists(metadatafile_path):
-                        os.remove(metadatafile_path)
-                        logger.debug(
-                            "Deleted metadatafile after successful upload: %s",
-                            metadatafile_path,
-                        )
-                except Exception as err:
-                    err = err.with_traceback(None)
-                    err_msg = (
-                        f"Error deleting file after upload: {err} {type(err)}"
-                    )
-                    warnings.warn(err_msg)
-
-        return result
 
 
 def _path_to_yaml_path(path: str | Path) -> str:
