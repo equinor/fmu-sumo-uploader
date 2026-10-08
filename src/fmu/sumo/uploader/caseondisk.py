@@ -11,7 +11,7 @@ import warnings
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import httpx
 import yaml
@@ -31,10 +31,8 @@ if TYPE_CHECKING:
 
     from sumo.wrapper import SumoClient
 
-    from fmu.sumo.uploader._sumofile import SumoFile
-
-UploadResult: TypeAlias = dict[str, Any]
-"""The outcome of uploading a single file, as returned by upload_files."""
+    from fmu.sumo.uploader._sumofile import SumoFile, UploadResult
+    from fmu.sumo.uploader._upload_files import UploadResults
 
 logger = get_uploader_logger()
 
@@ -42,6 +40,14 @@ try:
     uploader_version = version("fmu-sumo-uploader")
 except PackageNotFoundError:
     uploader_version = "0.0.0"
+
+
+class _UploadTiming(NamedTuple):
+    """When an upload started and ended, and how long it took."""
+
+    start_time: str
+    end_time: str
+    wall_time_seconds: float
 
 
 class CaseOnDisk:
@@ -98,14 +104,16 @@ class CaseOnDisk:
 
         logger.debug("case metadata path: %s", case_metadata_path)
         self._case_metadata_path = Path(case_metadata_path)
-        self.case_metadata = sanitize_datetimes(
+        self.case_metadata: dict[str, Any] = sanitize_datetimes(
             _load_case_metadata(self._case_metadata_path)
         )
 
         self._files: list[SumoFile] = []
-        self._fmu_case_uuid = get_element(self.case_metadata, "fmu.case.uuid")
+        self._fmu_case_uuid: str = get_element(
+            self.case_metadata, "fmu.case.uuid"
+        )
         logger.debug("self._fmu_case_uuid is %s", self._fmu_case_uuid)
-        self._sumo_parent_id = self._fmu_case_uuid
+        self._sumo_parent_id: str = self._fmu_case_uuid
         logger.debug("self._sumo_parent_id is %s", self._sumo_parent_id)
 
         self._ensemble_name = os.environ.get(
@@ -116,7 +124,9 @@ class CaseOnDisk:
             int(realization_number) if realization_number is not None else None
         )
 
-        self._sumo_logger = sumoclient.getLogger("fmu-sumo-uploader")
+        self._sumo_logger: logging.Logger = sumoclient.getLogger(
+            "fmu-sumo-uploader"
+        )
         self._sumo_logger.setLevel(logging.INFO)
         # Avoid that logging to sumo-server also is visible in local logging:
         self._sumo_logger.propagate = False
@@ -239,6 +249,40 @@ class CaseOnDisk:
         files_to_upload = list(self.files)
         logger.debug("files_to_upload: %s", files_to_upload)
 
+        upload_results, timing = self._run_upload(files_to_upload)
+        ok_uploads = upload_results["ok_uploads"]
+
+        self._warn_if_case_not_registered(upload_results["rejected_uploads"])
+        self._log_retries(upload_results)
+
+        upload_statistics: dict[str, Any] = {}
+        total_bytes_uploaded = 0
+        if ok_uploads:
+            upload_statistics = _calculate_upload_stats(ok_uploads)
+            total_bytes_uploaded = sum(
+                u["file_size_bytes"] or 0 for u in ok_uploads
+            )
+            logger.info(upload_statistics)
+            self._update_sumo_uploads()
+
+        self._log_upload_issues("rejected", upload_results["rejected_uploads"])
+        self._log_upload_issues("failed", upload_results["failed_uploads"])
+
+        self._log_upload_summary(
+            len(files_to_upload),
+            upload_results,
+            timing,
+            upload_statistics,
+            total_bytes_uploaded,
+        )
+
+        return ok_uploads
+
+    def _run_upload(
+        self, files_to_upload: list[SumoFile]
+    ) -> tuple[UploadResults, _UploadTiming]:
+        """Upload the given files, and record how long it took."""
+
         sumoclient = self.sumoclient.client_for_case(self._sumo_parent_id)
 
         start_time = datetime.now(tz=UTC).isoformat()
@@ -248,69 +292,83 @@ class CaseOnDisk:
             self._sumo_parent_id,
             sumoclient,
             self.sumo_mode,
-            self.config_path,
         )
         _dt = time.perf_counter() - _t0
         end_time = datetime.now(tz=UTC).isoformat()
 
-        ok_uploads = upload_results["ok_uploads"]
-        failed_uploads = upload_results["failed_uploads"]
-        rejected_uploads = upload_results["rejected_uploads"]
+        return upload_results, _UploadTiming(start_time, end_time, _dt)
+
+    @staticmethod
+    def _warn_if_case_not_registered(
+        rejected_uploads: list[UploadResult],
+    ) -> None:
+        """Warn if files were rejected because Sumo does not know the case."""
 
         # Files rejected during validation never reach the metadata upload
         # stage, so they have no "metadata_upload" entry.
-        if any(
+        if not any(
             res.get("metadata_upload") is not None
             and res["metadata_upload"].statuscode == 404
             for res in rejected_uploads
         ):
-            warnings.warn("Case is not registered on Sumo")
-            logger.info(
-                "Case was not found on Sumo. If you are in the FMU context "
-                "something may have gone wrong with the case registration "
-                "or you have not specified that the case shall be uploaded."
-                "A warning will be issued, and the script will stop. "
-                "If you are NOT in the FMU context, you can specify that "
-                "this script also registers the case by passing "
-                "register=True. This should not be done in the FMU context."
-            )
+            return
 
-        md_retries, blob_retries = _get_retries(
-            ok_uploads, failed_uploads, rejected_uploads
+        warnings.warn("Case is not registered on Sumo")
+        logger.info(
+            "Case was not found on Sumo. If you are in the FMU context "
+            "something may have gone wrong with the case registration "
+            "or you have not specified that the case shall be uploaded."
+            "A warning will be issued, and the script will stop. "
+            "If you are NOT in the FMU context, you can specify that "
+            "this script also registers the case by passing "
+            "register=True. This should not be done in the FMU context."
         )
 
-        if md_retries or blob_retries:
-            self._sumo_logger.warning(
-                "UploadRetries: Some uploads required retries. Case %s, Ensemble %s, Realization %s. Metadata retries: %d, Blob retries: %d",
-                self._fmu_case_uuid,
-                self._ensemble_name,
-                self._realization_id,
-                len(md_retries),
-                len(blob_retries),
-                extra={
-                    "objectUuid": self._sumo_parent_id,
-                    "details": {
-                        "metadata_retries": _get_stats(md_retries),
-                        "blob_retries": _get_stats(blob_retries),
-                    },
+    def _log_retries(self, upload_results: UploadResults) -> None:
+        """Log to Sumo if any of the uploads had to be retried."""
+
+        md_retries, blob_retries = _get_retries(
+            upload_results["ok_uploads"],
+            upload_results["failed_uploads"],
+            upload_results["rejected_uploads"],
+        )
+
+        if not md_retries and not blob_retries:
+            return
+
+        self._sumo_logger.warning(
+            "UploadRetries: Some uploads required retries. Case %s, Ensemble %s, Realization %s. Metadata retries: %d, Blob retries: %d",
+            self._fmu_case_uuid,
+            self._ensemble_name,
+            self._realization_id,
+            len(md_retries),
+            len(blob_retries),
+            extra={
+                "objectUuid": self._sumo_parent_id,
+                "details": {
+                    "metadata_retries": _get_stats(md_retries),
+                    "blob_retries": _get_stats(blob_retries),
                 },
-            )
+            },
+        )
 
-        upload_statistics: dict[str, Any] = {}
-        total_bytes_uploaded = 0
-        if ok_uploads:
-            upload_statistics = _calculate_upload_stats(ok_uploads)
-            total_bytes_uploaded = sum(
-                u["file_size_bytes"] for u in ok_uploads
-            )
-            logger.info(upload_statistics)
-            self._update_sumo_uploads()
+    def _log_upload_summary(
+        self,
+        total_files_count: int,
+        upload_results: UploadResults,
+        timing: _UploadTiming,
+        upload_statistics: dict[str, Any],
+        total_bytes_uploaded: int,
+    ) -> None:
+        """Log the outcome of the upload, locally and to Sumo."""
 
-        self._log_upload_issues("rejected", rejected_uploads)
-        self._log_upload_issues("failed", failed_uploads)
+        ok_uploads = upload_results["ok_uploads"]
+        failed_uploads = upload_results["failed_uploads"]
+        rejected_uploads = upload_results["rejected_uploads"]
+        _dt = timing.wall_time_seconds
 
         logger.info("Summary:")
-        logger.info("Total files count: %s", str(len(files_to_upload)))
+        logger.info("Total files count: %s", str(total_files_count))
         logger.info("OK: %s", str(len(ok_uploads)))
         logger.info("Failed: %s", str(len(failed_uploads)))
         logger.info("Rejected: %s", str(len(rejected_uploads)))
@@ -332,13 +390,13 @@ class CaseOnDisk:
             "host_name": host_name,
             "domain_name": domain_name,
             "uploader_version": uploader_version,
-            "total_files_count": len(files_to_upload),
+            "total_files_count": total_files_count,
             "ok_files": len(ok_uploads),
             "failed_files": len(failed_uploads),
             "rejected_files": len(rejected_uploads),
             "total_bytes_uploaded": total_bytes_uploaded,
-            "start_time": start_time,
-            "end_time": end_time,
+            "start_time": timing.start_time,
+            "end_time": timing.end_time,
             "wall_time_seconds": _dt,
             "upload_statistics": upload_statistics,
             "upload_rate_bytes_per_sec": bytes_per_sec,
@@ -354,8 +412,6 @@ class CaseOnDisk:
             "Upload summary",
             extra={"objectUuid": self._fmu_case_uuid, "details": details},
         )
-
-        return ok_uploads
 
     def _log_upload_issues(
         self, outcome: str, uploads: list[UploadResult]
@@ -381,7 +437,7 @@ class CaseOnDisk:
 
         response = self.sumoclient.post(path="/objects", json=case_metadata)
 
-        returned_object_id = response.json().get("objectid")
+        returned_object_id: str = response.json().get("objectid")
 
         return returned_object_id
 
@@ -512,7 +568,7 @@ def _is_empty(value: Any) -> bool:
 def _get_log_msg(sumo_parent_id: str, status: UploadResult) -> str:
     """Return a suitable logging for upload issues."""
 
-    obj = {
+    obj: dict[str, dict[str, Any]] = {
         "upload_issue": {
             "case_uuid": str(sumo_parent_id),
             "filepath": str(status.get("blob_file_path")),
