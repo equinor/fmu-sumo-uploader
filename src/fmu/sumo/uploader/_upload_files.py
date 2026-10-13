@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import os
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 import httpx
 
@@ -17,12 +17,25 @@ from fmu.sumo.uploader._logger import get_uploader_logger
 from fmu.sumo.uploader._utils import get_host_and_domain_names
 
 if TYPE_CHECKING:
-    from fmu.sumo.uploader._sumofile import SumoFile
+    from sumo.wrapper import SumoClient
+
+    from fmu.sumo.uploader._sumofile import SumoFile, UploadResult
 
 # pylint: disable=C0103 # allow non-snake case variable names
 
 
 logger = get_uploader_logger()
+
+# On these on-premise domains, parallel uploads are counter-productive.
+_SINGLE_UPLOAD_DOMAINS = frozenset({"rio.statoil.no", "stjohn.statoil.no"})
+
+
+class UploadResults(TypedDict):
+    """Results of a batch of file uploads, grouped by outcome."""
+
+    ok_uploads: list[UploadResult]
+    failed_uploads: list[UploadResult]
+    rejected_uploads: list[UploadResult]
 
 
 def get_ert_env(name: str) -> str | None:
@@ -41,82 +54,128 @@ def _base_object_metadata(base_metadata: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
+def _get_existing_classes(
+    sumoclient: SumoClient, uuids: list[str]
+) -> set[str]:
+    """Return the classes of the objects that already exist on Sumo."""
+    hits = sumoclient.post(
+        "/search",
+        json={
+            "query": {"ids": {"values": uuids}},
+            "_source": ["class"],
+        },
+    ).json()["hits"]["hits"]
+
+    return {hit["_source"]["class"] for hit in hits}
+
+
 def maybe_upload_realization_and_ensemble(
-    sumoclient: Any, base_metadata: dict[str, Any]
+    sumoclient: SumoClient, base_metadata: dict[str, Any]
 ) -> None:
     realization_uuid = base_metadata["fmu"]["realization"]["uuid"]
     ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
 
-    hits = sumoclient.post(
-        "/search",
-        json={
-            "query": {"ids": {"values": [realization_uuid, ensemble_uuid]}},
-            "_source": ["class"],
-        },
-    ).json()["hits"]["hits"]
+    classes = _get_existing_classes(
+        sumoclient, [realization_uuid, ensemble_uuid]
+    )
 
-    classes = [hit["_source"]["class"] for hit in hits]
+    if "realization" in classes:
+        return
 
-    if "realization" not in classes:
-        realization_metadata = _base_object_metadata(base_metadata)
-        del realization_metadata["fmu"]["entity"]
-        realization_metadata["class"] = "realization"
-        realization_metadata["fmu"]["context"]["stage"] = "realization"
+    realization_metadata = _base_object_metadata(base_metadata)
+    del realization_metadata["fmu"]["entity"]
+    realization_metadata["class"] = "realization"
+    realization_metadata["fmu"]["context"]["stage"] = "realization"
 
-        case_uuid = realization_metadata["fmu"]["case"]["uuid"]
-
-        if "ensemble" not in classes:
-            ensemble_metadata = deepcopy(realization_metadata)
-            del ensemble_metadata["fmu"]["realization"]
-            ensemble_metadata["class"] = "ensemble"
-            ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
-            ensemble_metadata["_sumo"]["status"] = "scratch"
-            sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
-
-        sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
-
-
-def maybe_upload_ensemble(
-    sumoclient: Any, base_metadata: dict[str, Any]
-) -> None:
-    ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
-
-    hits = sumoclient.post(
-        "/search",
-        json={
-            "query": {"ids": {"values": [ensemble_uuid]}},
-            "_source": ["class"],
-        },
-    ).json()["hits"]["hits"]
-
-    classes = [hit["_source"]["class"] for hit in hits]
+    case_uuid = realization_metadata["fmu"]["case"]["uuid"]
 
     if "ensemble" not in classes:
-        ensemble_metadata = _base_object_metadata(base_metadata)
+        ensemble_metadata = deepcopy(realization_metadata)
+        del ensemble_metadata["fmu"]["realization"]
         ensemble_metadata["class"] = "ensemble"
         ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
         ensemble_metadata["_sumo"]["status"] = "scratch"
-
-        case_uuid = ensemble_metadata["fmu"]["case"]["uuid"]
         sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
+
+    sumoclient.post(f"/objects('{case_uuid}')", json=realization_metadata)
+
+
+def maybe_upload_ensemble(
+    sumoclient: SumoClient, base_metadata: dict[str, Any]
+) -> None:
+    ensemble_uuid = base_metadata["fmu"]["ensemble"]["uuid"]
+
+    classes = _get_existing_classes(sumoclient, [ensemble_uuid])
+
+    if "ensemble" in classes:
+        return
+
+    ensemble_metadata = _base_object_metadata(base_metadata)
+    ensemble_metadata["class"] = "ensemble"
+    ensemble_metadata["fmu"]["context"]["stage"] = "ensemble"
+    ensemble_metadata["_sumo"]["status"] = "scratch"
+
+    case_uuid = ensemble_metadata["fmu"]["case"]["uuid"]
+    sumoclient.post(f"/objects('{case_uuid}')", json=ensemble_metadata)
+
+
+def _log_context_upload_exception(err: Exception) -> None:
+    """Log a failure to create the realization/ensemble objects."""
+    err = err.with_traceback(None)
+
+    if isinstance(err, httpx.HTTPStatusError):
+        error_string = (
+            str(err.response.status_code)
+            + err.response.reason_phrase
+            + err.response.text
+        )
+        logger.warning(
+            f"Metadata upload status error exception: {error_string}"
+        )
+    else:
+        logger.warning(f"Metadata upload exception {err} {type(err)}")
+
+
+def _maybe_upload_context_objects(
+    sumoclient: SumoClient, base_metadata: dict[str, Any]
+) -> None:
+    """Create the realization and/or ensemble the files belong to, if needed.
+
+    Failures are logged rather than raised, so that a missing context object
+    does not stop the file uploads.
+    """
+
+    # Use environment variables to get context
+    real_num = get_ert_env("REALIZATION_NUMBER")
+    ensemble_id = get_ert_env("ENSEMBLE_ID")
+
+    try:
+        # Realization context
+        if real_num is not None:
+            maybe_upload_realization_and_ensemble(sumoclient, base_metadata)
+
+        # Ensemble context. Ensembles are associated with an iteration but may
+        # lack an ERT iteration number env var depending on when this function
+        # is called in the workflow. For example, when this function is called
+        # before simulation start, the iteration number env var is not yet
+        # defined. Ensembles always have an ensemble_id env var.
+        elif ensemble_id is not None:
+            maybe_upload_ensemble(sumoclient, base_metadata)
+    except Exception as err:
+        _log_context_upload_exception(err)
 
 
 def _get_batch_size() -> int:
     _, domain_name = get_host_and_domain_names()
-    if domain_name in ["rio.statoil.no", "stjohn.statoil.no"]:
-        batch_size = 1
-    else:
-        batch_size = 10
-    return batch_size
+    return 1 if domain_name in _SINGLE_UPLOAD_DOMAINS else 10
 
 
 async def _upload_files(
     files: list[SumoFile],
-    sumoclient: Any,
+    sumoclient: SumoClient,
     sumo_parent_id: str,
     sumo_mode: str = "copy",
-    config_path: str = "fmuconfig/output/global_variables.yml",
-) -> list[dict[str, Any]]:
+) -> list[UploadResult]:
     """
     Upload realization and ensemble objects if they do not exist
     Create threads and call _upload in each thread
@@ -124,53 +183,10 @@ async def _upload_files(
     batch_size = _get_batch_size()
     logger.info(f"batch_size={batch_size}")
 
-    # Use environment variables to get context
-    real_num = get_ert_env("REALIZATION_NUMBER")
-    ensemble_id = get_ert_env("ENSEMBLE_ID")
+    if files:
+        _maybe_upload_context_objects(sumoclient, files[0].metadata)
 
-    # Realization context
-    if real_num is not None:
-        try:
-            maybe_upload_realization_and_ensemble(
-                sumoclient, files[0].metadata
-            )
-        except httpx.HTTPStatusError as err:
-            err = err.with_traceback(None)
-            error_string = (
-                str(err.response.status_code)
-                + err.response.reason_phrase
-                + err.response.text
-            )
-            logger.warning(
-                f"Metadata upload status error exception: {error_string}"
-            )
-        except Exception as err:
-            err = err.with_traceback(None)
-            logger.warning(f"Metadata upload exception {err} {type(err)}")
-
-    # Ensemble context. Ensembles are associated with an iteration but may lack
-    # an ERT iteration number env var depending on when this function is called
-    # in the workflow. For example, when this function is called before
-    # simulation start, the iteration number env var is not yet defined.
-    # Ensembles always have an ensemble_id env var.
-    elif ensemble_id is not None:
-        try:
-            maybe_upload_ensemble(sumoclient, files[0].metadata)
-        except httpx.HTTPStatusError as err:
-            err = err.with_traceback(None)
-            error_string = (
-                str(err.response.status_code)
-                + err.response.reason_phrase
-                + err.response.text
-            )
-            logger.warning(
-                f"Metadata upload status error exception: {error_string}"
-            )
-        except Exception as err:
-            err = err.with_traceback(None)
-            logger.warning(f"Metadata upload exception {err} {type(err)}")
-
-    all_results: list[dict[str, Any]] = []
+    all_results: list[UploadResult] = []
     for i in range(0, len(files), batch_size):
         batch = files[i : i + batch_size]
         tasks = [
@@ -184,8 +200,8 @@ async def _upload_files(
 
 
 async def _upload_file(
-    file: SumoFile, sumoclient: Any, sumo_parent_id: str, sumo_mode: str
-) -> dict[str, Any]:
+    file: SumoFile, sumoclient: SumoClient, sumo_parent_id: str, sumo_mode: str
+) -> UploadResult:
     """Upload a file"""
 
     result = await file.upload_to_sumo(
@@ -202,10 +218,9 @@ async def _upload_file(
 def upload_files(
     files: list[SumoFile],
     sumo_parent_id: str,
-    sumoclient: Any,
+    sumoclient: SumoClient,
     sumo_mode: str = "copy",
-    config_path: str = "fmuconfig/output/global_variables.yml",
-) -> dict[str, list[dict[str, Any]]]:
+) -> UploadResults:
     """
     Upload files
 
@@ -221,16 +236,17 @@ def upload_files(
             sumoclient,
             sumo_parent_id,
             sumo_mode,
-            config_path,
         )
     )
 
-    ok_uploads: list[dict[str, Any]] = []
-    failed_uploads: list[dict[str, Any]] = []
-    rejected_uploads: list[dict[str, Any]] = []
+    grouped: UploadResults = {
+        "ok_uploads": [],
+        "failed_uploads": [],
+        "rejected_uploads": [],
+    }
 
-    for r in results:
-        status = r.get("status")
+    for result in results:
+        status = result.get("status")
 
         if not status:
             raise ValueError(
@@ -238,16 +254,10 @@ def upload_files(
             )
 
         if status == "ok":
-            ok_uploads.append(r)
-
+            grouped["ok_uploads"].append(result)
         elif status == "rejected":
-            rejected_uploads.append(r)
-
+            grouped["rejected_uploads"].append(result)
         else:
-            failed_uploads.append(r)
+            grouped["failed_uploads"].append(result)
 
-    return {
-        "ok_uploads": ok_uploads,
-        "failed_uploads": failed_uploads,
-        "rejected_uploads": rejected_uploads,
-    }
+    return grouped
