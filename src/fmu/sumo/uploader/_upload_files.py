@@ -147,19 +147,16 @@ def _maybe_upload_context_objects(
 
     # Use environment variables to get context
     real_num = get_ert_env("REALIZATION_NUMBER")
-    ensemble_id = get_ert_env("ENSEMBLE_ID")
 
     try:
         # Realization context
         if real_num is not None:
             maybe_upload_realization_and_ensemble(sumoclient, base_metadata)
 
-        # Ensemble context. Ensembles are associated with an iteration but may
-        # lack an ERT iteration number env var depending on when this function
-        # is called in the workflow. For example, when this function is called
-        # before simulation start, the iteration number env var is not yet
-        # defined. Ensembles always have an ensemble_id env var.
-        elif ensemble_id is not None:
+        # Ensemble context. Check the file metadata rather than ERT env vars,
+        # since case-level files (e.g. preprocessed data uploaded from a
+        # workflow) may be uploaded while running in an ensemble.
+        elif "ensemble" in base_metadata["fmu"]:
             maybe_upload_ensemble(sumoclient, base_metadata)
     except Exception as err:
         _log_context_upload_exception(err)
