@@ -496,6 +496,13 @@ class SumoFile:
             await self._delete_metadata(sumoclient, object_id)
             return result
 
+        # Seismic is converted to OpenVDS on upload, so the blob is not the
+        # file the metadata describes.
+        if not is_seismic(self.metadata):
+            self._verify_uploaded_blob(
+                object_id, blob_upload.result, _get_sumo_logger(sumoclient)
+            )
+
         result["status"] = "ok"
         if sumo_mode.lower() == "move":
             self._delete_local_files()
