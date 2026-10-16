@@ -197,12 +197,12 @@ def get_blob_client(blob_url: str) -> BlobClient:
     return blobclient
 
 
-async def _upload_blob(blob_url: str, byte_string: bytes) -> None:
+async def _upload_blob(blob_url: str, byte_string: bytes) -> dict[str, Any]:
     blobclient = get_blob_client(blob_url)
     content_settings = ContentSettings(content_type="application/octet-stream")
     # set a timeout of 10s per megabyte, and at least 30s
     timeout = max(math.ceil(len(byte_string) / (1024 * 1024) * 10), 30)
-    blobclient.upload_blob(
+    return blobclient.upload_blob(
         byte_string,
         blob_type="BlockBlob",
         length=len(byte_string),
@@ -215,16 +215,14 @@ async def _upload_blob(blob_url: str, byte_string: bytes) -> None:
 @upload_response
 async def upload_blob(
     blob_url: str, byte_string: bytes, retryer: RetryStrategy
-) -> bool:
+) -> dict[str, Any]:
     """Upload blob to Azure and return a consistent response format"""
 
-    async def doit() -> None:
-        await _upload_blob(blob_url, byte_string)
+    async def doit() -> dict[str, Any]:
+        return await _upload_blob(blob_url, byte_string)
 
-    await retryer(doit)
     # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.UTC), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.UTC), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
-    # ... which is not what the caller expects, so we return something reasonable.
-    return True
+    return await retryer(doit)
 
 
 @upload_response
