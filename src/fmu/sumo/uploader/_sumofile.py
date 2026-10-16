@@ -377,23 +377,6 @@ class SumoFile:
         ).decode("utf-8")
         self.metadata["_sumo"]["uploader"] = version
 
-    def _warn_on_blob_size_mismatch(
-        self, file_size_bytes: int | None, sumo_logger: logging.Logger
-    ) -> None:
-        sumo_blob_size = get_element(self.metadata, "_sumo.blob_size")
-
-        if file_size_bytes is not None and file_size_bytes != sumo_blob_size:
-            file_path = get_element(self.metadata, "file.absolute_path")
-            case_uuid = get_element(self.metadata, "fmu.case.uuid")
-
-            sumo_logger.warning(
-                "FileSizeDiscrepancy: file.size_bytes (%s) differs from blob size (%s) for %s",
-                file_size_bytes,
-                sumo_blob_size,
-                file_path,
-                extra={"objectUuid": case_uuid},
-            )
-
     async def _delete_metadata(
         self, sumoclient: SumoClient, object_id: str
     ) -> httpx.Response:
@@ -413,10 +396,6 @@ class SumoFile:
             "blob_file_path": self.path,
             "file_size_bytes": file_size_bytes,
         }
-
-        self._warn_on_blob_size_mismatch(
-            file_size_bytes, _get_sumo_logger(sumoclient)
-        )
 
         result["validation"] = await validate(sumo_parent_id, self.metadata)
         if not result["validation"].ok():
