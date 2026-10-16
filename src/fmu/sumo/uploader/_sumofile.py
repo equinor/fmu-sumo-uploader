@@ -377,6 +377,66 @@ class SumoFile:
         ).decode("utf-8")
         self.metadata["_sumo"]["uploader"] = version
 
+    def _uploaded_blob_md5(self, blob_response: dict[str, Any]) -> bytes:
+        """Return the MD5 of the blob as stored in Azure.
+
+        For a single put upload, Azure computes the MD5 of the content it
+        received and returns it in the response. For larger blobs, uploaded
+        in blocks, the returned MD5 is of the block list rather than the
+        content, so we fall back to the MD5 of the bytes we uploaded. The
+        SAS token is write-only, so we cannot ask Azure for it afterwards."""
+
+        azure_md5 = blob_response.get("content_md5")
+        if azure_md5 and len(self.byte_string) <= _max_single_put_size:
+            return bytes(azure_md5)
+        return bytes.fromhex(self.blob_md5_hex)
+
+    def _verify_uploaded_blob(
+        self,
+        object_id: str,
+        blob_response: dict[str, Any],
+        sumo_logger: logging.Logger,
+    ) -> None:
+        """Log an error if the uploaded blob does not match file.size_bytes
+        or file.checksum_md5 in the metadata.
+
+        The upload is kept regardless; this only reports the discrepancy."""
+
+        file_path = get_element(self.metadata, "file.absolute_path")
+        case_uuid = get_element(self.metadata, "fmu.case.uuid")
+
+        # Azure rejects an upload whose length differs from the declared
+        # Content-Length, so a completed upload has exactly this size.
+        blob_size = len(self.byte_string)
+        file_size_bytes = get_element(self.metadata, "file.size_bytes")
+        if file_size_bytes is not None and file_size_bytes != blob_size:
+            sumo_logger.error(
+                "FileSizeDiscrepancy: file.size_bytes (%s) differs from uploaded blob size (%s) for object %s, file %s",
+                file_size_bytes,
+                blob_size,
+                object_id,
+                file_path,
+                extra={"objectUuid": case_uuid},
+            )
+
+        checksum_md5 = get_element(self.metadata, "file.checksum_md5")
+        if checksum_md5 is None:
+            return
+        blob_md5 = self._uploaded_blob_md5(blob_response)
+        try:
+            matches = bytes.fromhex(checksum_md5) == blob_md5
+        except (TypeError, ValueError):
+            matches = False
+        if not matches:
+            sumo_logger.error(
+                "ChecksumDiscrepancy: file.checksum_md5 (%s) differs from uploaded blob checksum (%s) for object %s, file %s",
+                checksum_md5,
+                blob_md5.hex(),
+                object_id,
+                file_path,
+                extra={"objectUuid": case_uuid},
+            )
+
     async def _delete_metadata(
         self, sumoclient: SumoClient, object_id: str
     ) -> httpx.Response:
