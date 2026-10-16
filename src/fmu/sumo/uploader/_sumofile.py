@@ -197,12 +197,12 @@ def get_blob_client(blob_url: str) -> BlobClient:
     return blobclient
 
 
-async def _upload_blob(blob_url: str, byte_string: bytes) -> None:
+async def _upload_blob(blob_url: str, byte_string: bytes) -> dict[str, Any]:
     blobclient = get_blob_client(blob_url)
     content_settings = ContentSettings(content_type="application/octet-stream")
     # set a timeout of 10s per megabyte, and at least 30s
     timeout = max(math.ceil(len(byte_string) / (1024 * 1024) * 10), 30)
-    blobclient.upload_blob(
+    return blobclient.upload_blob(
         byte_string,
         blob_type="BlockBlob",
         length=len(byte_string),
@@ -215,16 +215,14 @@ async def _upload_blob(blob_url: str, byte_string: bytes) -> None:
 @upload_response
 async def upload_blob(
     blob_url: str, byte_string: bytes, retryer: RetryStrategy
-) -> bool:
+) -> dict[str, Any]:
     """Upload blob to Azure and return a consistent response format"""
 
-    async def doit() -> None:
-        await _upload_blob(blob_url, byte_string)
+    async def doit() -> dict[str, Any]:
+        return await _upload_blob(blob_url, byte_string)
 
-    await retryer(doit)
     # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.UTC), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.UTC), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
-    # ... which is not what the caller expects, so we return something reasonable.
-    return True
+    return await retryer(doit)
 
 
 @upload_response
@@ -379,19 +377,62 @@ class SumoFile:
         ).decode("utf-8")
         self.metadata["_sumo"]["uploader"] = version
 
-    def _warn_on_blob_size_mismatch(
-        self, file_size_bytes: int | None, sumo_logger: logging.Logger
+    def _uploaded_blob_md5(self, blob_response: dict[str, Any]) -> bytes:
+        """Return the MD5 of the blob as stored in Azure.
+
+        For a single put upload, Azure computes the MD5 of the content it
+        received and returns it in the response. For larger blobs, uploaded
+        in blocks, the returned MD5 is of the block list rather than the
+        content, so we fall back to the MD5 of the bytes we uploaded. The
+        SAS token is write-only, so we cannot ask Azure for it afterwards."""
+
+        azure_md5 = blob_response.get("content_md5")
+        if azure_md5 and len(self.byte_string) <= _max_single_put_size:
+            return bytes(azure_md5)
+        return bytes.fromhex(self.blob_md5_hex)
+
+    def _verify_uploaded_blob(
+        self,
+        object_id: str,
+        blob_response: dict[str, Any],
+        sumo_logger: logging.Logger,
     ) -> None:
-        sumo_blob_size = get_element(self.metadata, "_sumo.blob_size")
+        """Log an error if the uploaded blob does not match file.size_bytes
+        or file.checksum_md5 in the metadata.
 
-        if file_size_bytes is not None and file_size_bytes != sumo_blob_size:
-            file_path = get_element(self.metadata, "file.absolute_path")
-            case_uuid = get_element(self.metadata, "fmu.case.uuid")
+        The upload is kept regardless; this only reports the discrepancy."""
 
-            sumo_logger.warning(
-                "FileSizeDiscrepancy: file.size_bytes (%s) differs from blob size (%s) for %s",
+        file_path = get_element(self.metadata, "file.absolute_path")
+        case_uuid = get_element(self.metadata, "fmu.case.uuid")
+
+        # Azure rejects an upload whose length differs from the declared
+        # Content-Length, so a completed upload has exactly this size.
+        blob_size = len(self.byte_string)
+        file_size_bytes = get_element(self.metadata, "file.size_bytes")
+        if file_size_bytes is not None and file_size_bytes != blob_size:
+            sumo_logger.error(
+                "FileSizeDiscrepancy: file.size_bytes (%s) differs from uploaded blob size (%s) for object %s, file %s",
                 file_size_bytes,
-                sumo_blob_size,
+                blob_size,
+                object_id,
+                file_path,
+                extra={"objectUuid": case_uuid},
+            )
+
+        checksum_md5 = get_element(self.metadata, "file.checksum_md5")
+        if checksum_md5 is None:
+            return
+        blob_md5 = self._uploaded_blob_md5(blob_response)
+        try:
+            matches = bytes.fromhex(checksum_md5) == blob_md5
+        except (TypeError, ValueError):
+            matches = False
+        if not matches:
+            sumo_logger.error(
+                "ChecksumDiscrepancy: file.checksum_md5 (%s) differs from uploaded blob checksum (%s) for object %s, file %s",
+                checksum_md5,
+                blob_md5.hex(),
+                object_id,
                 file_path,
                 extra={"objectUuid": case_uuid},
             )
@@ -415,10 +456,6 @@ class SumoFile:
             "blob_file_path": self.path,
             "file_size_bytes": file_size_bytes,
         }
-
-        self._warn_on_blob_size_mismatch(
-            file_size_bytes, _get_sumo_logger(sumoclient)
-        )
 
         result["validation"] = await validate(sumo_parent_id, self.metadata)
         if not result["validation"].ok():
@@ -458,6 +495,13 @@ class SumoFile:
             result["status"] = "failed"
             await self._delete_metadata(sumoclient, object_id)
             return result
+
+        # Seismic is converted to OpenVDS on upload, so the blob is not the
+        # file the metadata describes.
+        if not is_seismic(self.metadata):
+            self._verify_uploaded_blob(
+                object_id, blob_upload.result, _get_sumo_logger(sumoclient)
+            )
 
         result["status"] = "ok"
         if sumo_mode.lower() == "move":
