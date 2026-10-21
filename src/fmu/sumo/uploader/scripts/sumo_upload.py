@@ -20,7 +20,10 @@ except ModuleNotFoundError:
 from sumo.wrapper import SumoClient
 
 from fmu.sumo import uploader
-from fmu.sumo.uploader._logger import get_uploader_logger
+from fmu.sumo.uploader._logger import (
+    get_uploader_logger,
+    set_uploader_verbosity,
+)
 
 uploader_client_id = "a65dc4cc-3dec-43df-9599-e66d3abc4dca"
 
@@ -78,7 +81,7 @@ def main() -> None:
     parser = _get_parser()
     args = parser.parse_args()
 
-    logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+    set_uploader_verbosity(logging.DEBUG if args.debug else logging.INFO)
 
     # Legacy? Still needed?
     args.casepath = os.path.expandvars(args.casepath)
@@ -90,7 +93,6 @@ def main() -> None:
         metadata_path=args.metadata_path,
         config_path=args.config_path,
         sumo_mode=args.sumo_mode,
-        verbosity=logging.INFO,
     )
 
 
@@ -149,11 +151,9 @@ def sumo_upload_main(
     metadata_path: str,
     config_path: str = "fmuconfig/output/global_variables.yml",
     sumo_mode: str = "copy",
-    verbosity: int = logging.INFO,
 ) -> None:
     """A "main" function that can be used both from command line and from ERT workflow"""
 
-    logger.setLevel(verbosity)
     logger.debug("Running fmu_uploader_main()")
 
     # Catch-all to ensure FMU workflow keeps running even if something happens.
@@ -176,7 +176,6 @@ def sumo_upload_main(
         case = uploader.CaseOnDisk(
             case_metadata_path,
             sumoclient,
-            verbosity,
             sumo_mode,
             config_path,
             casepath,
@@ -210,7 +209,7 @@ class SumoUpload(ErtScript):
         """Parse with a simplified command line parser, for ERT only,
         call sumo_upload_main()"""
 
-        logger.setLevel(logging.WARNING)
+        set_uploader_verbosity(logging.WARNING)
 
         logger.debug("Calling run() on SumoUpload")
         parser = _get_parser()
@@ -221,7 +220,6 @@ class SumoUpload(ErtScript):
             metadata_path=parsed_args.metadata_path,
             config_path=parsed_args.config_path,
             sumo_mode=parsed_args.sumo_mode,
-            verbosity=logging.WARNING,
         )
 
 
