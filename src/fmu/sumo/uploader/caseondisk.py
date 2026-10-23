@@ -78,7 +78,6 @@ class CaseOnDisk:
         self,
         case_metadata_path: str | Path,
         sumoclient: SumoClient,
-        verbosity: int | str = logging.WARNING,
         sumo_mode: str = "copy",
         config_path: str = "fmuconfig/output/global_variables.yml",
         casepath: str | Path | None = None,
@@ -88,14 +87,11 @@ class CaseOnDisk:
         Args:
             case_metadata_path: Path to the case metadata file for the case.
             sumoclient: Connection to Sumo.
-            verbosity: Python logging level.
             sumo_mode: Either "copy" or "move", deciding whether files are
                 kept on disk after a successful upload.
             config_path: Path to the global variables file for the case.
             casepath: Path to the case root on disk.
         """
-
-        logger.setLevel(level=verbosity)
 
         self.sumoclient = sumoclient
         self.sumo_mode = sumo_mode

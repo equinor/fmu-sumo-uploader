@@ -37,3 +37,8 @@ def get_uploader_logger() -> logging.Logger:
         logger.addHandler(stderr_handler)
 
     return logger
+
+
+def set_uploader_verbosity(level: int) -> None:
+    """Set the log level for the shared fmu-sumo-uploader logger."""
+    get_uploader_logger().setLevel(level)

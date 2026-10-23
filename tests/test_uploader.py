@@ -232,7 +232,6 @@ def test_manifest(token, case_metadata_path, surface_file, manifest_file):
         case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
-        verbosity="DEBUG",
     )
 
     # Assert that manifest is there.
@@ -255,7 +254,6 @@ def test_sumo_uploads(
         case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
-        verbosity="DEBUG",
     )
 
     # Assert that manifest is there, and assert that sumo uploads log is not there.
@@ -296,7 +294,6 @@ def test_upload_without_registration(
         case_metadata_path=case_metadata_path,
         casepath=CASEPATH,
         sumoclient=sumoclient,
-        verbosity="DEBUG",
     )
 
     assert os.path.exists(surface_file)
