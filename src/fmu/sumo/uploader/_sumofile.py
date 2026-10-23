@@ -388,9 +388,7 @@ class SumoFile:
 
         azure_md5 = blob_response.get("content_md5")
         if azure_md5 and len(self.byte_string) <= _max_single_put_size:
-            logger.info("TEMP-DEBUG checksum source: Azure response (single put)")  # TEMP-DEBUG
             return bytes(azure_md5)
-        logger.info("TEMP-DEBUG checksum source: local bytes (block upload, Azure content_md5=%s)", azure_md5)  # TEMP-DEBUG
         return bytes.fromhex(self.blob_md5_hex)
 
     def _verify_uploaded_blob(
@@ -411,10 +409,7 @@ class SumoFile:
         # Content-Length, so a completed upload has exactly this size.
         blob_size = len(self.byte_string)
         file_size_bytes = get_element(self.metadata, "file.size_bytes")
-        logger.info("TEMP-DEBUG verifying object %s, file %s", object_id, file_path)  # TEMP-DEBUG
-        logger.info("TEMP-DEBUG size: metadata=%s, blob=%s, match=%s", file_size_bytes, blob_size, file_size_bytes == blob_size)  # TEMP-DEBUG
         if file_size_bytes is not None and file_size_bytes != blob_size:
-            logger.error("TEMP-DEBUG FileSizeDiscrepancy would be sent to Sumo")  # TEMP-DEBUG
             sumo_logger.error(
                 "FileSizeDiscrepancy: file.size_bytes (%s) differs from uploaded blob size (%s) for object %s, file %s",
                 file_size_bytes,
@@ -426,7 +421,6 @@ class SumoFile:
 
         checksum_md5 = get_element(self.metadata, "file.checksum_md5")
         if checksum_md5 is None:
-            logger.info("TEMP-DEBUG checksum: no file.checksum_md5 in metadata, skipping")  # TEMP-DEBUG
             return
         blob_md5 = self._uploaded_blob_md5(blob_response)
         # file.checksum_md5 is hex, while the blob MD5 is the raw digest
@@ -435,9 +429,7 @@ class SumoFile:
             matches = bytes.fromhex(checksum_md5) == blob_md5
         except (TypeError, ValueError):
             matches = False
-        logger.info("TEMP-DEBUG checksum: metadata=%s, blob=%s (base64 %s), match=%s", checksum_md5, blob_md5.hex(), base64.b64encode(blob_md5).decode(), matches)  # TEMP-DEBUG
         if not matches:
-            logger.error("TEMP-DEBUG ChecksumDiscrepancy would be sent to Sumo")  # TEMP-DEBUG
             sumo_logger.error(
                 "ChecksumDiscrepancy: file.checksum_md5 (%s) differs from uploaded blob checksum (%s) for object %s, file %s",
                 checksum_md5,
@@ -508,8 +500,6 @@ class SumoFile:
 
         # Seismic is converted to OpenVDS on upload, so the blob is not the
         # file the metadata describes.
-        if is_seismic(self.metadata):  # TEMP-DEBUG
-            logger.info("TEMP-DEBUG seismic, skipping verification of %s", object_id)  # TEMP-DEBUG
         if not is_seismic(self.metadata):
             self._verify_uploaded_blob(
                 object_id, blob_upload.result, _get_sumo_logger(sumoclient)
