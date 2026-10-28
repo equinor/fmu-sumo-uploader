@@ -423,10 +423,14 @@ class SumoFile:
         if checksum_md5 is None:
             return
         blob_md5 = self._uploaded_blob_md5(blob_response)
-        # file.checksum_md5 is hex, while the blob MD5 is the raw digest
-        # (Azure sends it base64 encoded), so compare them as bytes.
+        # Compare digest bytes to support both hex and base64 metadata.
         try:
-            matches = bytes.fromhex(checksum_md5) == blob_md5
+            metadata_md5 = (
+                bytes.fromhex(checksum_md5)
+                if len(checksum_md5) == 32
+                else base64.b64decode(checksum_md5, validate=True)
+            )
+            matches = metadata_md5 == blob_md5
         except (TypeError, ValueError):
             matches = False
         if not matches:
