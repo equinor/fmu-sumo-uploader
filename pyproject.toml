@@ -12,7 +12,7 @@ dynamic = ["version"]
 dependencies = [
   "sumo-wrapper-python>=1.8.0",
   "azure.storage.blob",
-  "fmu-dataio>=2.26.0",
+  "fmu-dataio>=2.32.0",
   "httpx>=0.24.1",
   "OpenVDS; sys_platform != 'darwin'",
   "ert; sys_platform != 'win32'",
