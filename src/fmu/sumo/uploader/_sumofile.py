@@ -66,6 +66,10 @@ def is_seismic(metadata: dict[str, Any]) -> bool:
     ]
 
 
+def is_parameters(metadata: dict[str, Any]) -> bool:
+    return get_element(metadata, "data.standard_result.name") == "parameters"
+
+
 class ResponseInfo:
     """The outcome and timing of a single request to Sumo or Azure."""
 
@@ -223,6 +227,24 @@ async def upload_blob(
 
     # response has the form {'etag': '"0x8DCDC8EED1510CC"', 'last_modified': datetime.datetime(2024, 9, 24, 11, 49, 20, tzinfo=datetime.UTC), 'content_md5': bytearray(b'\x1bPM3(\xe1o\xdf(\x1d\x1f\xb9Qm\xd9\x0b'), 'client_request_id': '08c962a4-7a6b-11ef-8710-acde48001122', 'request_id': 'f459ad2b-801e-007d-1977-0ef6ee000000', 'version': '2024-11-04', 'version_id': None, 'date': datetime.datetime(2024, 9, 24, 11, 49, 19, tzinfo=datetime.UTC), 'request_server_encrypted': True, 'encryption_key_sha256': None, 'encryption_scope': None}
     return await retryer(doit)
+
+
+@upload_response
+async def merge_parameters(
+    sumoclient: SumoClient,
+    object_id: str,
+    byte_string: bytes,
+    retry_strategy: RetryStrategy,
+) -> dict[str, Any]:
+    """Merge parameters blob to Sumo and return a consistent response format"""
+    path = f"/objects('{object_id}')/blob/merge"
+    response = await sumoclient.put_async(
+        path=path,
+        blob=byte_string,
+        retry_strategy=retry_strategy,
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 @upload_response
@@ -490,7 +512,9 @@ class SumoFile:
         self.sumo_object_id = object_id
         blob_url = metadata_upload.result.get("blob_url")
 
-        blob_upload = await self._perform_blob_upload(object_id, blob_url)
+        blob_upload = await self._perform_blob_upload(
+            sumoclient, object_id, blob_url
+        )
         result["blob_upload"] = blob_upload
 
         if not blob_upload.ok():
@@ -531,12 +555,27 @@ class SumoFile:
         return response
 
     async def _perform_blob_upload(
-        self, object_id: str, blob_url: str | dict[str, str]
+        self,
+        sumoclient: SumoClient,
+        object_id: str,
+        blob_url: str | dict[str, str],
     ) -> ResponseInfo:
         """Upload the blob, as OpenVDS for seismic and as-is for the rest.
 
         Sumo returns the blob url as a string, but the OpenVDS path also
         accepts it pre-split into "baseuri" and "auth"."""
+
+        if is_parameters(self.metadata):
+            retry_counter = _RetryCounter()
+            retry_strategy = RetryStrategy(before_sleep=retry_counter)
+            response = await merge_parameters(
+                sumoclient,
+                object_id,
+                self.byte_string,
+                retry_strategy=retry_strategy,
+            )
+            response.retries = retry_counter.count
+            return response
 
         if is_seismic(self.metadata):
             logger.info(
@@ -560,6 +599,7 @@ class SumoFile:
             retry_error_callback=return_last_value,
             before_sleep=retry_counter,
         )
+
         response = await upload_blob(
             cast("str", blob_url), self.byte_string, retryer
         )
