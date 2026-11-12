@@ -373,6 +373,22 @@ async def upload_seismic_blob(
         )
 
 
+_re_hex32 = re.compile("^[0-9a-f]{32}$", re.IGNORECASE)
+
+
+def unpack_md5(md5: str) -> bytes:
+    """Return the MD5 digest bytes from a hex or base64 string.
+
+    Raises ValueError if the string is not a valid hex or base64 encoding of 16 bytes.
+    """
+    if _re_hex32.match(md5):
+        return bytes.fromhex(md5)
+    try:
+        return base64.b64decode(md5, validate=True)
+    except (TypeError, ValueError):
+        raise ValueError("MD5 string is not valid hex or base64: " + md5)
+
+
 class SumoFile:
     metadata: dict[str, Any]
     byte_string: bytes
@@ -447,11 +463,7 @@ class SumoFile:
         blob_md5 = self._uploaded_blob_md5(blob_response)
         # Compare digest bytes to support both hex and base64 metadata.
         try:
-            metadata_md5 = (
-                bytes.fromhex(checksum_md5)
-                if len(checksum_md5) == 32
-                else base64.b64decode(checksum_md5, validate=True)
-            )
+            metadata_md5 = unpack_md5(checksum_md5)
             matches = metadata_md5 == blob_md5
         except (TypeError, ValueError):
             matches = False
