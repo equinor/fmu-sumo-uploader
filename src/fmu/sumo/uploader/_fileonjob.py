@@ -20,6 +20,3 @@ class FileOnJob(SumoFile):
             metadata: The metadata associated with the file.
         """
         super().__init__(metadata=metadata, byte_string=byte_string)
-        self.metadata["file"]["checksum_md5"] = self.metadata["_sumo"][
-            "blob_md5"
-        ]
