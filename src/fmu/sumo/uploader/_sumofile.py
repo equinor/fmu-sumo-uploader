@@ -528,7 +528,7 @@ class SumoFile:
 
         # Seismic is converted to OpenVDS on upload, so the blob is not the
         # file the metadata describes.
-        if not is_seismic(self.metadata):
+        if not is_seismic(self.metadata) and not is_parameters(self.metadata):
             self._verify_uploaded_blob(
                 object_id, blob_upload.result, _get_sumo_logger(sumoclient)
             )
