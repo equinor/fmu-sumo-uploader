@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.10.0](https://github.com/equinor/fmu-sumo-uploader/compare/2.9.0...2.10.0) (2026-11-13)
+
+
+### Features
+
+* support base64 MD5 checksums in file metadata ([#310](https://github.com/equinor/fmu-sumo-uploader/issues/310)) ([cbb4cee](https://github.com/equinor/fmu-sumo-uploader/commit/cbb4cee497304604d749a553b3f2e76f51e25284))
+* verify metadata checksum matches blob checksum ([#305](https://github.com/equinor/fmu-sumo-uploader/issues/305)) ([11037c6](https://github.com/equinor/fmu-sumo-uploader/commit/11037c68d736f5ea9e2e128b632f6d07e177ed35))
+
+
+### Bug Fixes
+
+* do not copy file.checksum_md5 from _sumo.blob_md5 ([f636754](https://github.com/equinor/fmu-sumo-uploader/commit/f636754aeecfe92c74b90e1aafbf0c47520ba847))
+* do not try to verify size and checksum for parameters. ([d3c73df](https://github.com/equinor/fmu-sumo-uploader/commit/d3c73df5ab82685fff2bbc1e4b30479db4e15d12))
+* restore parameter merge functionality. ([45d7c30](https://github.com/equinor/fmu-sumo-uploader/commit/45d7c30c0169b666dddcdb68136bff8e488e6aa2))
+* stricter check for decoding of encoded checksum. ([0e1dd15](https://github.com/equinor/fmu-sumo-uploader/commit/0e1dd15110ad9d0bde322104f55902f398533c40))
+
 ## [2.9.0](https://github.com/equinor/fmu-sumo-uploader/compare/2.8.0...2.9.0) (2026-10-15)
 
 
