@@ -91,7 +91,7 @@ class ResponseInfo:
 
     @classmethod
     def failure(
-        cls, err: Exception, statuscode: int, t0: float
+        cls, err: Exception | str, statuscode: int, t0: float
     ) -> ResponseInfo:
         """Return the outcome of a request that raised."""
         return cls(None, str(err), statuscode, t0, time.perf_counter())
@@ -161,8 +161,14 @@ def upload_response(
             return ResponseInfo.failure(err, 500, t0)
         except httpx.HTTPStatusError as err:
             err = err.with_traceback(None)
-            logger.error(f"HTTP status error during upload: {err} {type(err)}")
-            return ResponseInfo.failure(err, err.response.status_code, t0)
+            # Include the response body, it holds Sumo's explanation
+            error_string = f"{err} {err.response.text}"
+            logger.error(
+                f"HTTP status error during upload: {error_string} {type(err)}"
+            )
+            return ResponseInfo.failure(
+                error_string, err.response.status_code, t0
+            )
         except Exception as err:
             err = err.with_traceback(None)
             logger.error(f"Error during upload: {err} {type(err)}")
