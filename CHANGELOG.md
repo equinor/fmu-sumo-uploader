@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/equinor/fmu-sumo-uploader/compare/2.10.0...2.11.0) (2026-11-16)
+
+
+### Features
+
+* Include response body in upload HTTP errors ([#314](https://github.com/equinor/fmu-sumo-uploader/issues/314)) ([d7a91bb](https://github.com/equinor/fmu-sumo-uploader/commit/d7a91bbcc6d42a12561323f737be1893b9f1b2c5))
+
 ## [2.10.0](https://github.com/equinor/fmu-sumo-uploader/compare/2.9.0...2.10.0) (2026-11-13)
 
 
